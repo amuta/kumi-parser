@@ -21,15 +21,21 @@ module Kumi
         rule(:identifier) { match('[a-zA-Z_]') >> match('[a-zA-Z0-9_]').repeat }
         rule(:symbol) { str(':') >> identifier.as(:symbol) }
 
-        # Literals
-        rule(:integer) { match('[0-9]').repeat(1) }
-        rule(:float) { integer >> str('.') >> match('[0-9]').repeat(1) }
+        # Literals (with underscore support for readability)
+        rule(:integer_part) { match('[0-9]') >> (str('_').maybe >> match('[0-9]')).repeat }
+        rule(:integer) { integer_part }
+        rule(:float) { integer >> str('.') >> integer_part }
         rule(:number) { float.as(:float) | integer.as(:integer) }
         rule(:string_literal) do
           str('"') >> (str('"').absent? >> any).repeat.as(:string) >> str('"')
         end
         rule(:boolean) { (str('true').as(:true) | str('false').as(:false)) }
-        rule(:literal) { number | string_literal | boolean }
+        rule(:array_literal) do
+          str('[') >> ws? >>
+            (expression >> (ws? >> str(',') >> ws? >> expression).repeat).maybe.as(:elements) >>
+            ws? >> str(']')
+        end
+        rule(:literal) { array_literal.as(:array) | number | string_literal | boolean }
 
         # Keywords
         rule(:schema_kw) { str('schema') }
@@ -63,11 +69,21 @@ module Kumi
             literal
         end
 
-        # Function calls: fn(:name, arg1, arg2, ...)
+        # Function calls: fn(:name, arg1, arg2, ...) or fn.name(arg1, arg2, ...)
         rule(:function_call) do
+          classic_function_call | dot_function_call
+        end
+
+        rule(:classic_function_call) do
           str('fn(') >> ws? >>
             symbol.as(:fn_name) >>
             (str(',') >> ws? >> expression).repeat(0).as(:args) >>
+            ws? >> str(')')
+        end
+
+        rule(:dot_function_call) do
+          str('fn.') >> identifier.as(:fn_name) >> str('(') >> ws? >>
+            (expression >> (ws? >> str(',') >> ws? >> expression).repeat).maybe.as(:args) >>
             ws? >> str(')')
         end
 
@@ -112,9 +128,18 @@ module Kumi
           identifier >> (str('.') >> identifier).repeat
         end
 
-        # Declaration references: just identifier
+        # Declaration references: identifier or identifier[index]
         rule(:declaration_reference) do
+          array_access_reference | simple_declaration_reference
+        end
+
+        rule(:simple_declaration_reference) do
           identifier.as(:decl_ref)
+        end
+
+        rule(:array_access_reference) do
+          identifier.as(:array_name) >> str('[') >> ws? >> 
+            integer.as(:index) >> ws? >> str(']')
         end
 
         # Input declarations

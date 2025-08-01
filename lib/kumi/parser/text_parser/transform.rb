@@ -19,11 +19,24 @@ module Kumi
         LOC = Kumi::Syntax::Location.new(file: '<parslet_parser>', line: 1, column: 1)
 
         # Literals
-        rule(integer: simple(:x)) { Kumi::Syntax::Literal.new(x.to_i, loc: LOC) }
-        rule(float: simple(:x)) { Kumi::Syntax::Literal.new(x.to_f, loc: LOC) }
+        rule(integer: simple(:x)) { Kumi::Syntax::Literal.new(x.to_s.gsub('_', '').to_i, loc: LOC) }
+        rule(float: simple(:x)) { Kumi::Syntax::Literal.new(x.to_s.gsub('_', '').to_f, loc: LOC) }
         rule(string: simple(:x)) { Kumi::Syntax::Literal.new(x.to_s, loc: LOC) }
         rule(true: simple(:_)) { Kumi::Syntax::Literal.new(true, loc: LOC) }
         rule(false: simple(:_)) { Kumi::Syntax::Literal.new(false, loc: LOC) }
+
+        # Array literals
+        rule(array: { elements: sequence(:elements) }) do
+          Kumi::Syntax::Literal.new(elements, loc: LOC)
+        end
+
+        rule(array: { elements: simple(:element) }) do
+          Kumi::Syntax::Literal.new([element], loc: LOC)
+        end
+
+        rule(array: { elements: nil }) do
+          Kumi::Syntax::Literal.new([], loc: LOC)
+        end
 
         # Symbols
         rule(symbol: simple(:name)) { name.to_sym }
@@ -40,6 +53,13 @@ module Kumi
         end
 
         rule(decl_ref: simple(:name)) { Kumi::Syntax::DeclarationReference.new(name.to_sym, loc: LOC) }
+
+        # Array access: array_name[index]
+        rule(array_name: simple(:name), index: simple(:idx)) do
+          index_literal = Kumi::Syntax::Literal.new(idx.to_s.gsub('_', '').to_i, loc: LOC)
+          base_ref = Kumi::Syntax::DeclarationReference.new(name.to_sym, loc: LOC)
+          Kumi::Syntax::CallExpression.new(:[], [base_ref, index_literal], loc: LOC)
+        end
 
         # Function calls
         rule(fn_name: simple(:name), args: sequence(:args)) do
