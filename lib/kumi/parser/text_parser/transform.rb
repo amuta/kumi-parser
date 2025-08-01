@@ -80,8 +80,91 @@ module Kumi
 
         rule(left: simple(:l), ops: []) { l }
 
-        # Comparison expressions
+        # Handle expressions with no operations and no comparison
+        rule(left: simple(:l), ops: [], comp: nil) { l }
+
+        # Handle nested expression structures (when transform creates nested left/ops/comp)
+        rule(left: subtree(:nested), ops: [], comp: nil) do
+          # If the nested part is also a left/ops/comp structure, process it
+          if nested.is_a?(Hash) && nested[:left] && nested[:ops] && nested[:comp]
+            # Process the nested structure recursively
+            process_nested_expression(nested)
+          else
+            nested
+          end
+        end
+
+        # CRITICAL: Every node in the schema tree must be a proper AST node with children method
+        # The schema tree structure is: AST -> children -> children (recursive)
+        # Hash objects break the analyzer because they don't have the children method
+        # This method converts nested Hash structures from grammar into proper AST nodes
+        def self.process_nested_expression(expr)
+          return expr unless expr.is_a?(Hash)
+          
+          # Handle {:left, :ops, :comp} structure (comparison expressions)
+          if expr[:left] && expr.has_key?(:ops) && expr.has_key?(:comp)
+            left = expr[:left]
+            left = process_nested_expression(left) if left.is_a?(Hash)
+            
+            ops = expr[:ops] || []
+            ops = [ops] unless ops.is_a?(Array)
+            
+            result = ops.inject(left) do |left_expr, op|
+              if op.is_a?(Hash) && op[:op] && op[:right]
+                op_name = op[:op].keys.first
+                right_expr = process_nested_expression(op[:right])
+                Kumi::Syntax::CallExpression.new(op_name, [left_expr, right_expr], loc: LOC)
+              else
+                left_expr
+              end
+            end
+            
+            # Handle comparison
+            if expr[:comp] && !expr[:comp].nil?
+              comp = expr[:comp]
+              if comp.is_a?(Hash) && comp[:op] && comp[:right]
+                op_name = comp[:op].keys.first
+                right_expr = process_nested_expression(comp[:right])
+                Kumi::Syntax::CallExpression.new(op_name, [result, right_expr], loc: LOC)
+              else
+                result
+              end
+            else
+              result
+            end
+          # Handle {:left, :ops} structure (without comp)
+          elsif expr[:left] && expr.has_key?(:ops) && !expr.has_key?(:comp)
+            left = expr[:left]
+            left = process_nested_expression(left) if left.is_a?(Hash)
+            
+            ops = expr[:ops] || []
+            ops = [ops] unless ops.is_a?(Array)
+            
+            ops.inject(left) do |left_expr, op|
+              if op.is_a?(Hash) && op[:op] && op[:right]
+                op_name = op[:op].keys.first
+                right_expr = process_nested_expression(op[:right])
+                Kumi::Syntax::CallExpression.new(op_name, [left_expr, right_expr], loc: LOC)
+              else
+                left_expr
+              end
+            end
+          else
+            expr
+          end
+        end
+
+        # Comparison expressions - handle both Hash and simple cases
         rule(left: simple(:l), comp: simple(:comparison)) do
+          if comparison && comparison.is_a?(Hash) && comparison[:op] && comparison[:right]
+            op_name = comparison[:op].keys.first
+            Kumi::Syntax::CallExpression.new(op_name, [l, comparison[:right]], loc: LOC)
+          else
+            l
+          end
+        end
+
+        rule(left: simple(:l), comp: subtree(:comparison)) do
           if comparison && comparison[:op] && comparison[:right]
             op_name = comparison[:op].keys.first
             Kumi::Syntax::CallExpression.new(op_name, [l, comparison[:right]], loc: LOC)
@@ -169,6 +252,22 @@ module Kumi
           else
             # Fallback - shouldn't happen
             Kumi::Syntax::ValueDeclaration.new(name.to_sym, expr, loc: LOC)
+          end
+        end
+
+        # Handle the case with subtree expressions (complex nested expressions)  
+        rule(type: simple(:type), name: { symbol: simple(:name) }, expr: subtree(:expr)) do
+          # Process the expression to convert nested Hash structures to AST nodes
+          processed_expr = Transform.process_nested_expression(expr)
+          
+          # Differentiate between value and trait declarations based on type
+          if type.to_s == 'value'
+            Kumi::Syntax::ValueDeclaration.new(name.to_sym, processed_expr, loc: LOC)
+          elsif type.to_s == 'trait'
+            Kumi::Syntax::TraitDeclaration.new(name.to_sym, processed_expr, loc: LOC)
+          else
+            # Fallback - shouldn't happen
+            Kumi::Syntax::ValueDeclaration.new(name.to_sym, processed_expr, loc: LOC)
           end
         end
 
