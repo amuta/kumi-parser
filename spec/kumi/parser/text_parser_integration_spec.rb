@@ -113,6 +113,7 @@ RSpec.describe 'Kumi::Parser::TextParser Integration' do
           value :array_result, [input.income, 1000]
           value :fn_result, fn(:max, [input.income, 0])
           value :indexed, some_array[0]
+          value :power, 2 ** 3
         end
       KUMI
     end
@@ -158,12 +159,22 @@ RSpec.describe 'Kumi::Parser::TextParser Integration' do
       
       expect(ast).to be_a(Kumi::Syntax::Root)
       expect(ast.inputs.length).to eq(1)
-      expect(ast.attributes.length).to eq(4)
+      expect(ast.attributes.length).to eq(5)
       
       # Verify new syntax features are parsed
       deduction = ast.attributes.find { |a| a.name == :deduction }
       expect(deduction.expression).to be_a(Kumi::Syntax::Literal)
       expect(deduction.expression.value).to eq(14600) # underscore removed
+      
+      # Verify exponent operator is parsed correctly
+      power = ast.attributes.find { |a| a.name == :power }
+      expect(power.expression).to be_a(Kumi::Syntax::CallExpression)
+      expect(power.expression.fn_name).to eq(:**)
+      expect(power.expression.args.length).to eq(2)
+      expect(power.expression.args[0]).to be_a(Kumi::Syntax::Literal)
+      expect(power.expression.args[0].value).to eq(2)
+      expect(power.expression.args[1]).to be_a(Kumi::Syntax::Literal)
+      expect(power.expression.args[1].value).to eq(3)
     end
   end
 

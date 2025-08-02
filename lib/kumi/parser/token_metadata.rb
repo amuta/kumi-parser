@@ -36,6 +36,7 @@ module Kumi
       FN = :fn
 
       # Operators (by precedence)
+      EXPONENT = :exponent      # **
       MULTIPLY = :multiply       # *
       DIVIDE = :divide          # /
       MODULO = :modulo          # %
@@ -151,6 +152,12 @@ module Kumi
       },
 
       # Operators with precedence and associativity
+      exponent: {
+        category: :operator,
+        precedence: 7,
+        associativity: :right,
+        arity: :binary
+      },
       multiply: {
         category: :operator,
         precedence: 6,

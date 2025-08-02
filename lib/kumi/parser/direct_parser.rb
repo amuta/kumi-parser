@@ -547,6 +547,7 @@ module Kumi
         when :lte then :<=
         when :and then :and
         when :or then :or
+        when :exponent then :**
         else token_type
         end
       end

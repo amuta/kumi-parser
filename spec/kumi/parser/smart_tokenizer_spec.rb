@@ -44,5 +44,28 @@ RSpec.describe Kumi::Parser::SmartTokenizer do
         end
       end
     end
+
+    context 'exponent operator' do
+      it 'tokenizes ** as exponent operator' do
+        input = '2 ** 3'
+        tokenizer = described_class.new(input)
+        tokens = tokenizer.tokenize
+
+        expect(tokens.map(&:type)).to eq([:integer, :exponent, :integer, :eof])
+        expect(tokens[1].value).to eq('**')
+        expect(tokens[1].metadata[:precedence]).to eq(7)
+        expect(tokens[1].metadata[:associativity]).to eq(:right)
+      end
+
+      it 'distinguishes ** from two separate * tokens' do
+        input = '2 * * 3'
+        tokenizer = described_class.new(input)
+        tokens = tokenizer.tokenize
+
+        expect(tokens.map(&:type)).to eq([:integer, :multiply, :multiply, :integer, :eof])
+        expect(tokens[1].value).to eq('*')
+        expect(tokens[2].value).to eq('*')
+      end
+    end
   end
 end

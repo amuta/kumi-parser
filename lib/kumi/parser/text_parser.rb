@@ -2,6 +2,7 @@
 
 require_relative 'smart_tokenizer'
 require_relative 'direct_parser'
+require_relative 'errors'
 
 module Kumi
   module Parser

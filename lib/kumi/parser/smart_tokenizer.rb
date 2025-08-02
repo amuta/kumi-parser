@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative 'token_metadata'
+require_relative 'token'
+require_relative 'errors'
 
 module Kumi
   module Parser
@@ -242,6 +244,20 @@ module Kumi
             advance
             location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
             @tokens << Token.new(:lt, '<', location, Kumi::Parser::TOKEN_METADATA[:lt])
+          end
+        when '*'
+          if peek_char == '*'
+            advance
+            advance
+            location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
+            @tokens << Token.new(:exponent, '**', location, Kumi::Parser::TOKEN_METADATA[:exponent])
+          else
+            # Single asterisk: fall through to single character handling
+            token_type = CHAR_TO_TOKEN[char]
+            metadata = Kumi::Parser::TOKEN_METADATA[token_type].dup
+            location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
+            @tokens << Token.new(token_type, char, location, metadata)
+            advance
           end
         when '.'
           if peek_char == '.'
