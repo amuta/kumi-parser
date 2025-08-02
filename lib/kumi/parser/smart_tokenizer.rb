@@ -243,6 +243,29 @@ module Kumi
             location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
             @tokens << Token.new(:lt, '<', location, Kumi::Parser::TOKEN_METADATA[:lt])
           end
+        when '.'
+          if peek_char == '.'
+            advance
+            if peek_char == '.'
+              # Three dots: ...
+              advance
+              advance
+              location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
+              @tokens << Token.new(:dot_dot_dot, '...', location, Kumi::Parser::TOKEN_METADATA[:dot_dot_dot])
+            else
+              # Two dots: ..
+              advance
+              location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
+              @tokens << Token.new(:dot_dot, '..', location, Kumi::Parser::TOKEN_METADATA[:dot_dot])
+            end
+          else
+            # Single dot: fall through to single character handling
+            token_type = CHAR_TO_TOKEN[char]
+            metadata = Kumi::Parser::TOKEN_METADATA[token_type].dup
+            location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
+            @tokens << Token.new(token_type, char, location, metadata)
+            advance
+          end
         else
           # Single character operators/punctuation
           token_type = CHAR_TO_TOKEN[char]

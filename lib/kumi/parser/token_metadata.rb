@@ -52,6 +52,8 @@ module Kumi
 
       # Punctuation
       DOT = :dot                # .
+      DOT_DOT = :dot_dot        # ..
+      DOT_DOT_DOT = :dot_dot_dot # ...
       COMMA = :comma            # ,
       COLON = :colon            # :
       LPAREN = :lparen          # (
@@ -274,6 +276,12 @@ module Kumi
       dot: {
         category: :punctuation,
         indicates_member_access: true
+      },
+      dot_dot: {
+        category: :range
+      },
+      dot_dot_dot: {
+        category: :range
       },
       comma: {
         category: :punctuation,

@@ -153,14 +153,61 @@ module Kumi
       end
 
       def parse_domain_specification
-        # For now, just skip the domain spec - we can implement this later
-        # This handles cases like: domain: 1..10, domain: %w[a b c], domain: ["x", "y"]
-        if current_token.type == :lbracket
-          parse_array_literal
+        # Parse domain specifications: domain: ["x", "y"], domain: [1, 2, 3], domain: 1..10, domain: 1...10
+        case current_token.type
+        when :lbracket
+          # Array domain: ["a", "b", "c"] or [1, 2, 3]
+          array_expr = parse_array_literal
+          # Convert ArrayExpression to Ruby Array for analyzer compatibility
+          convert_array_expression_to_ruby_array(array_expr)
+        when :integer, :float
+          # Range domain: 1..10 or 1...10
+          parse_range_domain
         else
-          # Skip until comma or newline
+          # Skip unknown domain specs for now
           advance until %i[comma newline eof end].include?(current_token.type)
           nil
+        end
+      end
+
+      def parse_range_domain
+        # Parse numeric ranges like 1..10 or 0.0...100.0
+        start_token = current_token
+        start_value = start_token.type == :integer ? start_token.value.to_i : start_token.value.to_f
+        advance
+        
+        case current_token.type
+        when :dot_dot
+          # Inclusive range: start..end
+          advance # consume ..
+          end_token = current_token
+          end_value = end_token.type == :integer ? end_token.value.to_i : end_token.value.to_f
+          advance
+          (start_value..end_value)
+        when :dot_dot_dot
+          # Exclusive range: start...end
+          advance # consume ...
+          end_token = current_token
+          end_value = end_token.type == :integer ? end_token.value.to_i : end_token.value.to_f
+          advance
+          (start_value...end_value)
+        else
+          # Just a single number, treat as single-element array
+          [start_value]
+        end
+      end
+
+      def convert_array_expression_to_ruby_array(array_expr)
+        return nil unless array_expr.is_a?(Kumi::Syntax::ArrayExpression)
+        
+        array_expr.elements.map do |element|
+          if element.is_a?(Kumi::Syntax::Literal)
+            element.value
+          else
+            # For non-literal elements, we'd need more complex evaluation
+            # For now, just return the element as-is
+            element  
+          end
         end
       end
 
@@ -494,6 +541,12 @@ module Kumi
         case token_type
         when :eq then :==
         when :ne then :!=
+        when :gt then :>
+        when :lt then :<
+        when :gte then :>=
+        when :lte then :<=
+        when :and then :and
+        when :or then :or
         else token_type
         end
       end
