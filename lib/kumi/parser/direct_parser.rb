@@ -387,12 +387,12 @@ module Kumi
         input_token = expect_token(:identifier) # 'input'
         expect_token(:dot)
 
-        path = [expect_token(:identifier).value.to_sym]
+        path = [expect_field_name_token.to_sym]
 
         # Handle nested access: input.field.subfield
         while current_token.type == :dot
           advance # consume '.'
-          path << expect_token(:identifier).value.to_sym
+          path << expect_field_name_token.to_sym
         end
 
         if path.length == 1
@@ -406,12 +406,12 @@ module Kumi
         input_token = expect_token(:input) # 'input' keyword token
         expect_token(:dot)
 
-        path = [expect_token(:identifier).value.to_sym]
+        path = [expect_field_name_token.to_sym]
 
         # Handle nested access: input.field.subfield
         while current_token.type == :dot
           advance # consume '.'
-          path << expect_token(:identifier).value.to_sym
+          path << expect_field_name_token.to_sym
         end
 
         if path.length == 1
@@ -520,6 +520,17 @@ module Kumi
         end
       end
 
+      def expect_field_name_token
+        # Field names can be identifiers or keywords (like 'base', 'input', etc.)
+        token = current_token
+        if token.identifier? || token.keyword?
+          advance
+          token.value
+        else
+          raise_parse_error("Expected field name (identifier or keyword), got #{token.type}")
+        end
+      end
+
       def raise_parse_error(message)
         location = current_token.location
         raise Errors::ParseError.new(message, token: current_token)
@@ -547,7 +558,7 @@ module Kumi
         when :lte then :<=
         when :and then :and
         when :or then :or
-        when :exponent then :**
+        when :exponent then :power
         else token_type
         end
       end

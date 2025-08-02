@@ -169,7 +169,7 @@ RSpec.describe 'Kumi::Parser::TextParser Integration' do
       # Verify exponent operator is parsed correctly
       power = ast.attributes.find { |a| a.name == :power }
       expect(power.expression).to be_a(Kumi::Syntax::CallExpression)
-      expect(power.expression.fn_name).to eq(:**)
+      expect(power.expression.fn_name).to eq(:power)
       expect(power.expression.args.length).to eq(2)
       expect(power.expression.args[0]).to be_a(Kumi::Syntax::Literal)
       expect(power.expression.args[0].value).to eq(2)
