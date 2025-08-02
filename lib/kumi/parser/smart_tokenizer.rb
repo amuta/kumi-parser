@@ -278,7 +278,7 @@ module Kumi
 
       def raise_tokenizer_error(message)
         location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: @column)
-        raise TokenizerError.new(message, location: location)
+        raise Errors::TokenizerError.new(message, location: location)
       end
     end
 
