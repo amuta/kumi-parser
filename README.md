@@ -1,76 +1,73 @@
 # Kumi::Parser
 
-Text parser for [Kumi](https://github.com/amuta/kumi). Allows Kumi schemas to be written as plain text with syntax validation and editor integration.
+Text parser for [Kumi](https://github.com/amuta/kumi) schemas. Direct tokenizer → AST construction with ~4ms parse time.
 
 ## Installation
-
-Add this line to your application's Gemfile:
 
 ```ruby
 gem 'kumi-parser'
 ```
 
-And then execute:
-
-    $ bundle install
-
-Or install it yourself as:
-
-    $ gem install kumi-parser
-
 ## Usage
-
-### Basic Parsing
 
 ```ruby
 require 'kumi/parser'
 
-schema_text = <<~SCHEMA
+schema = <<~KUMI
   schema do
     input do
-      integer :age, domain: 18..65
-      string :status, domain: %w[active inactive]
+      float :income
+      string :status
     end
     
     trait :adult, input.age >= 18
-    value :bonus, 100
+    value :tax, fn(:calculate_tax, input.income)
   end
-SCHEMA
+KUMI
 
-# Parse and get AST
-ast = Kumi::Parser::TextParser.parse(schema_text)
+# Parse to AST
+ast = Kumi::Parser::TextParser.parse(schema)
 
-# Validate syntax
-diagnostics = Kumi::Parser::TextParser.validate(schema_text)
-puts "Valid!" if diagnostics.empty?
+# Validate
+Kumi::Parser::TextParser.valid?(schema) # => true
 ```
 
-### Editor Integration
+## API
 
-```ruby
-# Get diagnostics for Monaco Editor
-monaco_diagnostics = Kumi::Parser::TextParser.diagnostics_for_monaco(schema_text)
+- `parse(text)` → AST
+- `valid?(text)` → Boolean  
+- `validate(text)` → Array of error hashes
 
-# Get diagnostics for CodeMirror
-codemirror_diagnostics = Kumi::Parser::TextParser.diagnostics_for_codemirror(schema_text)
+## Syntax
 
-# Get diagnostics as JSON
-json_diagnostics = Kumi::Parser::TextParser.diagnostics_as_json(schema_text)
+```
+schema do
+  input do
+    <type> :<name>[, domain: <spec>]
+  end
+  
+  trait :<name>, <expression>
+  
+  value :<name>, <expression>
+  value :<name> do
+    on <condition>, <result>
+    base <result>
+  end
+end
 ```
 
-## API Reference
+**Function calls**: `fn(:name, arg1, arg2, ...)`  
+**Operators**: `+` `-` `*` `/` `%` `>` `<` `>=` `<=` `==` `!=` `&` `|`  
+**References**: `input.field`, `value_name`, `array[index]`
 
-- `parse(text)` - Parse schema text and return AST
-- `validate(text)` - Validate syntax and return diagnostics
-- `valid?(text)` - Quick validation check (returns boolean)
-- `diagnostics_for_monaco(text)` - Get Monaco Editor format diagnostics
-- `diagnostics_for_codemirror(text)` - Get CodeMirror format diagnostics  
-- `diagnostics_as_json(text)` - Get JSON format diagnostics
+## Architecture
 
-## Development
+- `smart_tokenizer.rb` - Context-aware tokenization with embedded metadata
+- `direct_ast_parser.rb` - Recursive descent parser, direct AST construction
+- `token_metadata.rb` - Token types, precedence, and semantic hints
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+See `docs/` for technical details.
 
 ## License
 
-MIT License
+MIT

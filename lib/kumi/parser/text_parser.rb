@@ -1,51 +1,36 @@
 # frozen_string_literal: true
 
-require_relative 'syntax_validator'
+require_relative 'smart_tokenizer'
+require_relative 'direct_parser'
 
 module Kumi
   module Parser
     module TextParser
-      # TextParser module - all classes are autoloaded by Zeitwerk
+      # Clean text parser focused on core parsing functionality
 
       class << self
+        # Parse text to AST
+        def parse(text, source_file: '<input>')
+          tokens = Kumi::Parser::SmartTokenizer.new(text, source_file: source_file).tokenize
+          Kumi::Parser::DirectParser.new(tokens).parse
+        rescue Kumi::Parser::Errors::ParseError, Kumi::Parser::Errors::TokenizerError => e
+          # Convert parser errors to the expected SyntaxError for compatibility
+          raise Kumi::Errors::SyntaxError, e.message
+        end
+
         # Check if text is syntactically valid
         def valid?(text, source_file: '<input>')
-          validator.valid?(text, source_file: source_file)
+          parse(text, source_file: source_file)
+          true
+        rescue StandardError => e
+          false
         end
 
-        # Validate text and return diagnostic collection
+        # Basic validation - returns array of error hashes
         def validate(text, source_file: '<input>')
+          # Use SyntaxValidator for proper diagnostic extraction
+          validator = Kumi::Parser::SyntaxValidator.new
           validator.validate(text, source_file: source_file)
-        end
-
-        # Get Monaco Editor format diagnostics
-        def diagnostics_for_monaco(text, source_file: '<input>')
-          validate(text, source_file: source_file).to_monaco
-        end
-
-        # Get CodeMirror format diagnostics
-        def diagnostics_for_codemirror(text, source_file: '<input>')
-          validate(text, source_file: source_file).to_codemirror
-        end
-
-        # Get JSON format diagnostics
-        def diagnostics_as_json(text, source_file: '<input>')
-          validate(text, source_file: source_file).to_json
-        end
-
-        # Parse text (compatibility method)
-        def parse(text, source_file: '<input>')
-          parser.parse(text, source_file: source_file)
-        end
-
-        private
-
-        def validator
-          @validator ||= SyntaxValidator.new
-        end
-
-        def parser
-          @parser ||= TextParser::Parser.new
         end
       end
     end

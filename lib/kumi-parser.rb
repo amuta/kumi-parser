@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'kumi'
+require 'kumi/syntax/node'
 require 'zeitwerk'
 require 'parslet'
 

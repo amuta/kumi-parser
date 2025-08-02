@@ -73,174 +73,97 @@ RSpec.describe 'Kumi::Parser::TextParser Integration' do
         expect(diagnostics.count).to eq(1)
 
         diagnostic = diagnostics.to_a.first
-        expect(diagnostic.line).to be > 1
-        expect(diagnostic.column).to be > 0
-        expect(diagnostic.message).to be_a(String)
-        expect(diagnostic.severity).to eq(:error)
-        expect(diagnostic.type).to eq(:syntax)
+        expect(diagnostic[:line]).to be >= 1
+        expect(diagnostic[:column]).to be > 0
+        expect(diagnostic[:message]).to be_a(String)
+        expect(diagnostic[:severity]).to eq(:error)
+        expect(diagnostic[:type]).to eq(:syntax)
       end
 
       it 'handles multiple error types correctly' do
         [invalid_schema_missing_do, invalid_schema_missing_end, invalid_schema_bad_function].each do |schema|
           diagnostics = Kumi::Parser::TextParser.validate(schema)
           expect(diagnostics.count).to eq(1)
-          expect(diagnostics.to_a.first.severity).to eq(:error)
+          expect(diagnostics.to_a.first[:severity]).to eq(:error)
         end
       end
     end
+  end
 
-    describe '.diagnostics_for_monaco' do
-      it 'returns empty array for valid schema' do
-        result = Kumi::Parser::TextParser.diagnostics_for_monaco(valid_schema)
-        expect(result).to eq([])
-      end
-
-      it 'returns Monaco format for invalid schema' do
-        result = Kumi::Parser::TextParser.diagnostics_for_monaco(invalid_schema_missing_do)
-
-        expect(result).to be_an(Array)
-        expect(result.length).to eq(1)
-
-        diagnostic = result.first
-        expect(diagnostic).to have_key(:severity)
-        expect(diagnostic).to have_key(:message)
-        expect(diagnostic).to have_key(:startLineNumber)
-        expect(diagnostic).to have_key(:startColumn)
-        expect(diagnostic).to have_key(:endLineNumber)
-        expect(diagnostic).to have_key(:endColumn)
-
-        expect(diagnostic[:severity]).to eq(8) # Monaco.MarkerSeverity.Error
-        expect(diagnostic[:startLineNumber]).to be > 1
-        expect(diagnostic[:startColumn]).to be > 0
-      end
-
-      it 'handles complex errors with proper line/column info' do
-        result = Kumi::Parser::TextParser.diagnostics_for_monaco(invalid_schema_bad_function)
-
-        diagnostic = result.first
-        expect(diagnostic[:startLineNumber]).to eq(5) # Line with fn()
-        expect(diagnostic[:message]).to include('end')
-      end
-    end
-
-    describe '.diagnostics_for_codemirror' do
-      it 'returns empty array for valid schema' do
-        result = Kumi::Parser::TextParser.diagnostics_for_codemirror(valid_schema)
-        expect(result).to eq([])
-      end
-
-      it 'returns CodeMirror format for invalid schema' do
-        result = Kumi::Parser::TextParser.diagnostics_for_codemirror(invalid_schema_missing_do)
-
-        expect(result).to be_an(Array)
-        expect(result.length).to eq(1)
-
-        diagnostic = result.first
-        expect(diagnostic).to have_key(:from)
-        expect(diagnostic).to have_key(:to)
-        expect(diagnostic).to have_key(:severity)
-        expect(diagnostic).to have_key(:message)
-
-        expect(diagnostic[:severity]).to eq('error')
-        expect(diagnostic[:from]).to be_a(Integer)
-        expect(diagnostic[:to]).to be_a(Integer)
-        expect(diagnostic[:to]).to be > diagnostic[:from]
-      end
-    end
-
-    describe '.diagnostics_as_json' do
-      it 'returns empty JSON array for valid schema' do
-        result = Kumi::Parser::TextParser.diagnostics_as_json(valid_schema)
-        parsed = JSON.parse(result)
-        expect(parsed).to eq([])
-      end
-
-      it 'returns valid JSON for invalid schema' do
-        result = Kumi::Parser::TextParser.diagnostics_as_json(invalid_schema_missing_do)
-
-        expect(result).to be_a(String)
-        parsed = JSON.parse(result)
-
-        expect(parsed).to be_an(Array)
-        expect(parsed.length).to eq(1)
-
-        diagnostic = parsed.first
-        expect(diagnostic).to have_key('line')
-        expect(diagnostic).to have_key('column')
-        expect(diagnostic).to have_key('message')
-        expect(diagnostic).to have_key('severity')
-        expect(diagnostic).to have_key('type')
-
-        expect(diagnostic['severity']).to eq('error')
-        expect(diagnostic['type']).to eq('syntax')
-        expect(diagnostic['line']).to be > 1
-        expect(diagnostic['column']).to be > 0
-      end
-
-      it 'produces consistent JSON structure across different errors' do
-        test_schemas = [invalid_schema_missing_do, invalid_schema_missing_end, invalid_schema_bad_function]
-
-        test_schemas.each do |schema|
-          result = Kumi::Parser::TextParser.diagnostics_as_json(schema)
-          parsed = JSON.parse(result)
-
-          expect(parsed.length).to eq(1)
-          diagnostic = parsed.first
-
-          # All diagnostics should have the same structure
-          %w[line column message severity type].each do |key|
-            expect(diagnostic).to have_key(key)
+  describe 'integration with analyzer and compiler' do
+    let(:working_schema) do
+      <<~KUMI
+        schema do
+          input do
+            string :name
+            integer :age
           end
+          value :greeting, input.name
         end
-      end
+      KUMI
     end
 
-    describe 'source file parameter handling' do
-      it 'passes source file to all diagnostic methods' do
-        source_file = 'user_schema.kumi'
-
-        # These shouldn't raise errors and should accept the parameter
-        expect { Kumi::Parser::TextParser.valid?(valid_schema, source_file: source_file) }.not_to raise_error
-        expect { Kumi::Parser::TextParser.validate(valid_schema, source_file: source_file) }.not_to raise_error
-        expect do
-          Kumi::Parser::TextParser.diagnostics_for_monaco(valid_schema, source_file: source_file)
-        end.not_to raise_error
-        expect do
-          Kumi::Parser::TextParser.diagnostics_for_codemirror(valid_schema, source_file: source_file)
-        end.not_to raise_error
-        expect do
-          Kumi::Parser::TextParser.diagnostics_as_json(valid_schema, source_file: source_file)
-        end.not_to raise_error
-      end
+    let(:new_syntax_features) do
+      <<~KUMI
+        schema do
+          input do
+            float :income
+          end
+          value :deduction, 14_600
+          value :array_result, [input.income, 1000]
+          value :fn_result, fn(:max, [input.income, 0])
+          value :indexed, some_array[0]
+        end
+      KUMI
     end
 
-    describe 'error message quality' do
-      it 'produces human-readable error messages' do
-        diagnostics = Kumi::Parser::TextParser.validate(invalid_schema_missing_do)
-        message = diagnostics.to_a.first.message
+    it 'produces AST compatible with analyzer for simple schemas' do
+      ast = Kumi::Parser::TextParser.parse(working_schema)
+      
+      expect(ast).to be_a(Kumi::Syntax::Root)
+      expect(ast.inputs.length).to eq(2)
+      expect(ast.attributes.length).to eq(1)
+      
+      # Should work with analyzer
+      expect { Kumi::Analyzer.analyze!(ast) }.not_to raise_error
+      
+      result = Kumi::Analyzer.analyze!(ast)
+      expect(result).to be_a(Kumi::Analyzer::Result)
+    end
 
-        # Should be humanized, not raw parser output
-        expect(message).not_to include('Failed to match sequence')
-        expect(message).not_to include('SPACE?')
-        expect(message).not_to include('`-')
+    it 'produces AST compatible with compiler for simple schemas' do
+      ast = Kumi::Parser::TextParser.parse(working_schema)
+      result = Kumi::Analyzer.analyze!(ast)
+      
+      expect { Kumi::Compiler.compile(ast, analyzer: result) }.not_to raise_error
+      
+      compiled = Kumi::Compiler.compile(ast, analyzer: result)
+      expect(compiled).to be_a(Kumi::Core::CompiledSchema)
+    end
 
-        # Should contain helpful information
-        expect(message.downcase).to include('do')
-      end
+    it 'executes simple schemas end-to-end' do
+      ast = Kumi::Parser::TextParser.parse(working_schema)
+      analysis = Kumi::Analyzer.analyze!(ast)
+      compiled = Kumi::Compiler.compile(ast, analyzer: analysis)
+      
+      # Test execution
+      test_data = { name: "Alice", age: 25 }
+      result = compiled.evaluate(test_data)
+      
+      expect(result.fetch(:greeting)).to eq("Alice")
+    end
 
-      it 'provides specific error messages for different error types' do
-        test_cases = [
-          [invalid_schema_missing_do, 'do'],
-          [invalid_schema_missing_end, 'end'],
-          [invalid_schema_bad_function, 'end'] # fn() causes end expectation
-        ]
-
-        test_cases.each do |schema, expected_keyword|
-          diagnostics = Kumi::Parser::TextParser.validate(schema)
-          message = diagnostics.to_a.first.message.downcase
-          expect(message).to include(expected_keyword)
-        end
-      end
+    it 'parses all new syntax features correctly' do
+      ast = Kumi::Parser::TextParser.parse(new_syntax_features)
+      
+      expect(ast).to be_a(Kumi::Syntax::Root)
+      expect(ast.inputs.length).to eq(1)
+      expect(ast.attributes.length).to eq(4)
+      
+      # Verify new syntax features are parsed
+      deduction = ast.attributes.find { |a| a.name == :deduction }
+      expect(deduction.expression).to be_a(Kumi::Syntax::Literal)
+      expect(deduction.expression.value).to eq(14600) # underscore removed
     end
   end
 

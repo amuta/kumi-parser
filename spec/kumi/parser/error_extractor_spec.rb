@@ -64,13 +64,6 @@ RSpec.describe Kumi::Parser::ErrorExtractor do
       end
     end
 
-    context 'with Parslet::ParseFailed error' do
-      it 'extracts position information' do
-        # Skip this test as it requires complex Parslet mocking
-        skip 'Complex Parslet error mocking - tested via integration'
-      end
-    end
-
     context 'with generic error' do
       let(:generic_error) { StandardError.new('Something went wrong') }
 

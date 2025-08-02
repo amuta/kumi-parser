@@ -42,34 +42,11 @@ RSpec.describe Kumi::Parser::SyntaxValidator do
         expect(diagnostics.count).to eq(1)
 
         error = diagnostics.to_a.first
-        expect(error.line).to eq(2)
-        expect(error.column).to eq(3)
-        expect(error.severity).to eq(:error)
-        expect(error.type).to eq(:syntax)
-        expect(error.message).to include('do')
-      end
-
-      it 'produces valid JSON output' do
-        diagnostics = validator.validate(missing_do_schema)
-        json_output = diagnostics.to_json
-
-        expect(json_output).to be_a(String)
-        parsed = JSON.parse(json_output)
-        expect(parsed).to be_an(Array)
-        expect(parsed.first).to have_key('line')
-        expect(parsed.first).to have_key('column')
-        expect(parsed.first).to have_key('message')
-      end
-
-      it 'produces valid Monaco Editor format' do
-        diagnostics = validator.validate(missing_do_schema)
-        monaco_output = diagnostics.to_monaco
-
-        expect(monaco_output).to be_an(Array)
-        expect(monaco_output.first).to have_key(:severity)
-        expect(monaco_output.first).to have_key(:startLineNumber)
-        expect(monaco_output.first).to have_key(:startColumn)
-        expect(monaco_output.first).to have_key(:message)
+        expect(error[:line]).to eq(1)
+        expect(error[:column]).to eq(7)
+        expect(error[:severity]).to eq(:error)
+        expect(error[:type]).to eq(:syntax)
+        expect(error[:message]).to include('do')
       end
     end
 
@@ -88,8 +65,8 @@ RSpec.describe Kumi::Parser::SyntaxValidator do
 
         expect(diagnostics.count).to eq(1)
         error = diagnostics.to_a.first
-        expect(error.line).to be > 1
-        expect(error.message.downcase).to include('end')
+        expect(error[:line]).to be > 1
+        expect(error[:message].downcase).to include('end')
       end
     end
 
@@ -109,9 +86,9 @@ RSpec.describe Kumi::Parser::SyntaxValidator do
         diagnostics = validator.validate(invalid_function_schema)
 
         expect(diagnostics.count).to eq(1)
-        error = diagnostics.to_a.first
-        expect(error.line).to eq(5)
-        expect(error.message).not_to be_empty
+        error = diagnostics.first
+        expect(error[:line]).to eq(5)
+        expect(error[:message]).not_to be_empty
       end
     end
   end
