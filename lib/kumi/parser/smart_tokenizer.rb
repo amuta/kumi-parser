@@ -28,6 +28,12 @@ module Kumi
           when '#' then consume_comment
           when '"' then consume_string
           when /\d/ then consume_number
+          when '-'
+            if peek_char && peek_char.match?(/\d/)
+              consume_number
+            else
+              consume_operator_or_punctuation
+            end
           when /[a-zA-Z_]/ then consume_identifier_or_keyword
           when ':' then consume_symbol_or_colon
           else
@@ -123,6 +129,12 @@ module Kumi
         start_column = @column
         number_str = ''
         has_dot = false
+
+        # Handle negative sign if present
+        if current_char == '-'
+          number_str += current_char
+          advance
+        end
 
         # Consume digits and underscores, and optionally a decimal point
         while current_char && (current_char.match?(/[0-9_]/) || (!has_dot && current_char == '.'))

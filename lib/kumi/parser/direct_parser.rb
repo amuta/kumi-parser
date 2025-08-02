@@ -373,6 +373,18 @@ module Kumi
         when :fn
           parse_function_call_from_fn_token
 
+        when :subtract
+          # Handle unary minus operator: -expression
+          advance # consume '-'
+          skip_comments_and_newlines
+          operand = parse_primary_expression
+          # Convert to subtraction from zero: (subtract 0 operand)
+          Kumi::Syntax::CallExpression.new(
+            :subtract,
+            [Kumi::Syntax::Literal.new(0, loc: token.location), operand],
+            loc: token.location
+          )
+
         when :newline, :comment
           # Skip newlines and comments in expressions
           skip_comments_and_newlines
