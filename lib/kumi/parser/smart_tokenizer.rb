@@ -160,6 +160,18 @@ module Kumi
         start_column = @column
         identifier = consume_while { |c| c.match?(/[a-zA-Z0-9_]/) }
 
+        # Check if it's a constant (e.g., Float::INFINITY)
+        if identifier == 'Float' && current_char == ':' && peek_char == ':'
+          advance # consume first :
+          advance # consume second :
+          constant_name = consume_while { |c| c.match?(/[a-zA-Z0-9_]/) }
+          full_constant = "#{identifier}::#{constant_name}"
+          
+          location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
+          @tokens << Token.new(:constant, full_constant, location, Kumi::Parser::TOKEN_METADATA[:constant])
+          return
+        end
+
         # Check if it's a keyword
         if keyword_type = Kumi::Parser::KEYWORDS[identifier]
           metadata = Kumi::Parser::TOKEN_METADATA[keyword_type].dup

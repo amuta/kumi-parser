@@ -13,6 +13,7 @@ module Kumi
       # Identifiers and symbols
       IDENTIFIER = :identifier
       SYMBOL = :symbol           # :name
+      CONSTANT = :constant       # Float::INFINITY
 
       # Keywords
       SCHEMA = :schema
@@ -277,6 +278,11 @@ module Kumi
         category: :identifier,
         starts_expression: true,
         is_declaration_name: true
+      },
+      constant: {
+        category: :literal,
+        starts_expression: true,
+        ast_class: 'Kumi::Syntax::Literal'
       },
 
       # Punctuation with parser hints

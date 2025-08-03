@@ -335,7 +335,7 @@ module Kumi
         token = current_token
 
         case token.type
-        when :integer, :float, :string, :boolean
+        when :integer, :float, :string, :boolean, :constant
           # Direct AST construction using token metadata
           value = convert_literal_value(token)
           advance
@@ -529,6 +529,12 @@ module Kumi
         when :float then token.value.gsub('_', '').to_f
         when :string then token.value
         when :boolean then token.value == 'true'
+        when :constant
+          case token.value
+          when 'Float::INFINITY' then Float::INFINITY
+          else
+            raise_parse_error("Unknown constant: #{token.value}")
+          end
         end
       end
 
