@@ -126,9 +126,9 @@ module Kumi
           end
         end
 
-        # Handle nested array declarations
+        # Handle nested array and hash declarations
         children = []
-        if type_token.metadata[:type_name] == :array && current_token.type == :do
+        if [:array, :hash].include?(type_token.metadata[:type_name]) && current_token.type == :do
           advance # consume 'do'
           skip_comments_and_newlines
 

@@ -144,6 +144,11 @@ module Kumi
         starts_declaration: true,
         type_name: :array
       },
+      hash_type: {
+        category: :type_keyword,
+        starts_declaration: true,
+        type_name: :hash
+      },
 
       # Function keyword
       fn: {
@@ -379,7 +384,8 @@ module Kumi
       'string' => :string_type,
       'boolean' => :boolean_type,
       'any' => :any_type,
-      'array' => :array_type
+      'array' => :array_type,
+      'hash' => :hash_type
     }.freeze
 
     # Opener to closer mappings for error recovery
