@@ -66,7 +66,7 @@ RSpec.describe 'Kumi::Parser::TextParser Simple Domain Examples' do
         puts "\n=== COMPARISON ==="
         puts "Same number of inputs: #{text_ast.inputs.length == ruby_ast.inputs.length}"
         puts "Same number of traits: #{text_ast.traits.length == ruby_ast.traits.length}"
-        puts "Same number of attributes: #{text_ast.attributes.length == ruby_ast.attributes.length}"
+        puts "Same number of values: #{text_ast.values.length == ruby_ast.values.length}"
 
         # Compare input structures (ignoring domains)
         text_ast.inputs.each_with_index do |input, idx|
@@ -85,7 +85,7 @@ RSpec.describe 'Kumi::Parser::TextParser Simple Domain Examples' do
         # Core AST structure should be identical except for domains
         expect(text_ast.inputs.length).to eq(ruby_ast.inputs.length)
         expect(text_ast.traits.length).to eq(ruby_ast.traits.length)
-        expect(text_ast.attributes.length).to eq(ruby_ast.attributes.length)
+        expect(text_ast.values.length).to eq(ruby_ast.values.length)
       end
     end
 

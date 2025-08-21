@@ -92,7 +92,7 @@ RSpec.describe 'Kumi::Parser::TextParser Range Domains' do
 
         expect(text_ast.inputs.length).to eq(ruby_ast.inputs.length)
         expect(text_ast.traits.length).to eq(ruby_ast.traits.length)
-        expect(text_ast.attributes.length).to eq(ruby_ast.attributes.length)
+        expect(text_ast.values.length).to eq(ruby_ast.values.length)
       end
     end
 

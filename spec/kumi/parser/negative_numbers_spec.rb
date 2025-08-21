@@ -4,13 +4,13 @@ RSpec.describe 'Negative Numbers Support' do
   describe 'tokenization' do
     it 'tokenizes negative integers as single tokens' do
       tokens = tokenize('-42')
-      expect(tokens.map(&:type)).to eq([:integer, :eof])
+      expect(tokens.map(&:type)).to eq(%i[integer eof])
       expect(tokens.first.value).to eq('-42')
     end
 
     it 'tokenizes negative floats as single tokens' do
       tokens = tokenize('-3.14')
-      expect(tokens.map(&:type)).to eq([:float, :eof])
+      expect(tokens.map(&:type)).to eq(%i[float eof])
       expect(tokens.first.value).to eq('-3.14')
     end
 
@@ -19,7 +19,7 @@ RSpec.describe 'Negative Numbers Support' do
       tokens = tokenize('fn(:test, -5)')
       token_types = tokens.map(&:type)
       expect(token_types).to include(:integer)
-      
+
       negative_token = tokens.find { |t| t.type == :integer }
       expect(negative_token.value).to eq('-5')
     end
@@ -29,7 +29,7 @@ RSpec.describe 'Negative Numbers Support' do
       token_types = tokens.map(&:type)
       expect(token_types).to include(:subtract)
       expect(token_types).to include(:integer)
-      
+
       integer_token = tokens.find { |t| t.type == :integer }
       expect(integer_token.value).to eq('5') # positive
     end
@@ -38,26 +38,26 @@ RSpec.describe 'Negative Numbers Support' do
   describe 'parsing' do
     it 'parses negative integer literals' do
       schema = parse_schema('schema do input do end value :test, -42 end')
-      
-      value_decl = schema.attributes.first
+
+      value_decl = schema.values.first
       expect(value_decl.expression).to be_a(Kumi::Syntax::Literal)
       expect(value_decl.expression.value).to eq(-42)
     end
 
     it 'parses negative float literals' do
       schema = parse_schema('schema do input do end value :test, -3.14 end')
-      
-      value_decl = schema.attributes.first
+
+      value_decl = schema.values.first
       expect(value_decl.expression).to be_a(Kumi::Syntax::Literal)
       expect(value_decl.expression.value).to eq(-3.14)
     end
 
     it 'parses negative numbers in function arguments' do
       schema = parse_schema('schema do input do end value :test, fn(:max, -5, -10) end')
-      
-      value_decl = schema.attributes.first
+
+      value_decl = schema.values.first
       call_expr = value_decl.expression
-      
+
       expect(call_expr).to be_a(Kumi::Syntax::CallExpression)
       expect(call_expr.args.first.value).to eq(-5)
       expect(call_expr.args.last.value).to eq(-10)
@@ -72,10 +72,10 @@ RSpec.describe 'Negative Numbers Support' do
           value :adjusted, (input.balance + -100)
         end
       KUMI
-      
-      value_decl = schema.attributes.first
+
+      value_decl = schema.values.first
       add_expr = value_decl.expression
-      
+
       expect(add_expr).to be_a(Kumi::Syntax::CallExpression)
       expect(add_expr.fn_name).to eq(:add)
       expect(add_expr.args.last.value).to eq(-100)
@@ -90,10 +90,10 @@ RSpec.describe 'Negative Numbers Support' do
           value :test, (input.x - -5)
         end
       KUMI
-      
-      value_decl = schema.attributes.first
+
+      value_decl = schema.values.first
       subtract_expr = value_decl.expression
-      
+
       expect(subtract_expr.fn_name).to eq(:subtract)
       expect(subtract_expr.args.first).to be_a(Kumi::Syntax::InputReference)
       expect(subtract_expr.args.last).to be_a(Kumi::Syntax::Literal)
@@ -111,10 +111,10 @@ RSpec.describe 'Negative Numbers Support' do
           value :negative_balance, -input.balance
         end
       KUMI
-      
-      value_decl = schema.attributes.first
+
+      value_decl = schema.values.first
       subtract_expr = value_decl.expression
-      
+
       expect(subtract_expr).to be_a(Kumi::Syntax::CallExpression)
       expect(subtract_expr.fn_name).to eq(:subtract)
       expect(subtract_expr.args.first.value).to eq(0)
@@ -130,10 +130,10 @@ RSpec.describe 'Negative Numbers Support' do
           value :test, -(input.balance * 2)
         end
       KUMI
-      
-      value_decl = schema.attributes.first
+
+      value_decl = schema.values.first
       subtract_expr = value_decl.expression
-      
+
       expect(subtract_expr.fn_name).to eq(:subtract)
       expect(subtract_expr.args.first.value).to eq(0)
       expect(subtract_expr.args.last).to be_a(Kumi::Syntax::CallExpression)
@@ -149,10 +149,10 @@ RSpec.describe 'Negative Numbers Support' do
           value :test, (-input.balance * 2)
         end
       KUMI
-      
-      value_decl = schema.attributes.first
+
+      value_decl = schema.values.first
       multiply_expr = value_decl.expression
-      
+
       expect(multiply_expr.fn_name).to eq(:multiply)
       expect(multiply_expr.args.first).to be_a(Kumi::Syntax::CallExpression)
       expect(multiply_expr.args.first.fn_name).to eq(:subtract)
@@ -330,11 +330,11 @@ RSpec.describe 'Negative Numbers Support' do
       KUMI
 
       expect(Kumi::Parser::TextParser.valid?(schema_text)).to be true
-      
+
       schema = Kumi::Parser::TextParser.parse(schema_text)
       freezing_trait = schema.traits.first
       condition = freezing_trait.expression
-      
+
       expect(condition.args.last.value).to eq(-0.1)
     end
   end
@@ -351,27 +351,27 @@ RSpec.describe 'Negative Numbers Support' do
       KUMI
 
       schema = Kumi::Parser::TextParser.parse(schema_text)
-      values = schema.attributes.map { |attr| attr.expression.value }
-      
+      values = schema.values.map { |attr| attr.expression.value }
+
       expect(values).to eq([-1, -2, -3.14])
     end
 
     it 'handles negative numbers with underscores' do
       schema_text = 'schema do input do end value :big_negative, -1_000_000 end'
-      
+
       schema = Kumi::Parser::TextParser.parse(schema_text)
-      value = schema.attributes.first.expression.value
-      
+      value = schema.values.first.expression.value
+
       expect(value).to be_a(Integer)
       expect(value.to_s).to eq('-1000000')
     end
 
     it 'preserves negative zero for floats' do
       schema_text = 'schema do input do end value :neg_zero, -0.0 end'
-      
+
       schema = Kumi::Parser::TextParser.parse(schema_text)
-      value = schema.attributes.first.expression.value
-      
+      value = schema.values.first.expression.value
+
       expect(value).to eq(-0.0)
       expect(1.0 / value).to be_negative # True negative zero
     end

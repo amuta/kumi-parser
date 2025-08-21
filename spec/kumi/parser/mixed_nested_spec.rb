@@ -62,11 +62,11 @@ RSpec.describe 'Mixed Nested Schema Support' do
   end
 
   describe 'Ruby DSL compatibility' do
-    # Define equivalent Ruby DSL schema
+    # Define equivalent Ruby DSL AST
     module MixedNestedSchema
       extend Kumi::Schema
       
-      schema do
+      build_syntax_tree do
         input do
           hash :organization do
             string :name
@@ -110,47 +110,23 @@ RSpec.describe 'Mixed Nested Schema Support' do
       end
     end
 
-    context 'when compared to ruby parsed schema' do
+    context 'when compared to ruby AST' do
       it 'has identical AST structure' do
-        ruby_parsed = MixedNestedSchema.__syntax_tree__
-        text_parsed = Kumi::Parser::TextParser.parse(mixed_nested_text)
+        ruby_ast = MixedNestedSchema.__syntax_tree__
+        text_ast = Kumi::Parser::TextParser.parse(mixed_nested_text)
 
-        # Compare basic structure
-        expect(text_parsed.inputs.length).to eq(ruby_parsed.inputs.length)
-        
-        # Compare organization input structure recursively
-        def compare_input_structure(text_input, ruby_input)
-          expect(text_input.name).to eq(ruby_input.name)
-          expect(text_input.type).to eq(ruby_input.type)
-          expect(text_input.children.length).to eq(ruby_input.children.length)
-          
-          text_input.children.each_with_index do |child, idx|
-            compare_input_structure(child, ruby_input.children[idx])
-          end
-        end
-        
-        compare_input_structure(text_parsed.inputs[0], ruby_parsed.inputs[0])
+        # Direct AST comparison
+        expect(text_ast).to eq(ruby_ast)
       end
 
-      it 'produces compatible S-expression output (accounting for known differences)' do
-        ruby_parsed = MixedNestedSchema.__syntax_tree__
-        text_parsed = Kumi::Parser::TextParser.parse(mixed_nested_text)
+      it 'produces identical S-expression output' do
+        ruby_ast = MixedNestedSchema.__syntax_tree__
+        text_ast = Kumi::Parser::TextParser.parse(mixed_nested_text)
         
-        ruby_sexpr = Kumi::Support::SExpressionPrinter.print(ruby_parsed)
-        text_sexpr = Kumi::Support::SExpressionPrinter.print(text_parsed)
+        ruby_sexpr = Kumi::Support::SExpressionPrinter.print(ruby_ast)
+        text_sexpr = Kumi::Support::SExpressionPrinter.print(text_ast)
         
-        # Key structural elements should be present in both
-        expect(text_sexpr).to include('InputDeclaration :organization :hash')
-        expect(text_sexpr).to include('InputDeclaration :regions :array')
-        expect(text_sexpr).to include('InputDeclaration :facilities :hash')
-        expect(text_sexpr).to include('ValueDeclaration :org_name')
-        expect(text_sexpr).to include('ValueDeclaration :total_capacity')
-        expect(text_sexpr).to include('TraitDeclaration :large_organization')
-        
-        # Both should have the same number of major sections
-        expect(text_sexpr.scan(/InputDeclaration/).length).to eq(ruby_sexpr.scan(/InputDeclaration/).length)
-        expect(text_sexpr.scan(/ValueDeclaration/).length).to eq(ruby_sexpr.scan(/ValueDeclaration/).length)
-        expect(text_sexpr.scan(/TraitDeclaration/).length).to eq(ruby_sexpr.scan(/TraitDeclaration/).length)
+        expect(text_sexpr).to eq(ruby_sexpr)
       end
     end
   end

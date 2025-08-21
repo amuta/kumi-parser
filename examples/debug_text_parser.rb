@@ -33,7 +33,7 @@ begin
   puts
 
   puts 'AST structure:'
-  puts "- Values: #{ast.attributes.count} - #{ast.attributes.map(&:name)}"
+  puts "- Values: #{ast.values.count} - #{ast.values.map(&:name)}"
   puts "- Traits: #{ast.traits.count} - #{ast.traits.map(&:name)}"
 rescue StandardError => e
   puts "Error: #{e.message}"

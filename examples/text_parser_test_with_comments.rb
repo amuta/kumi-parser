@@ -70,8 +70,8 @@ begin
       end
     end
 
-    puts "- Value declarations: #{ast.attributes.count}"
-    ast.attributes.each_with_index do |value, i|
+    puts "- Value declarations: #{ast.values.count}"
+    ast.values.each_with_index do |value, i|
       puts "  #{i + 1}. #{value.name}"
     end
 

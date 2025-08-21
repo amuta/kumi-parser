@@ -75,7 +75,7 @@ module Kumi
         # Construct Root with exact AST.md structure
         Kumi::Syntax::Root.new(
           input_declarations,
-          value_declarations, # attributes
+          value_declarations, # values
           trait_declarations,
           loc: schema_token.location
         )
@@ -128,7 +128,7 @@ module Kumi
 
         # Handle nested array and hash declarations
         children = []
-        if [:array, :hash].include?(type_token.metadata[:type_name]) && current_token.type == :do
+        if %i[array hash].include?(type_token.metadata[:type_name]) && current_token.type == :do
           advance # consume 'do'
           skip_comments_and_newlines
 
@@ -143,13 +143,24 @@ module Kumi
           expect_token(:end)
         end
 
-        Kumi::Syntax::InputDeclaration.new(
-          name_token.value,
-          domain,
-          type_token.metadata[:type_name],
-          children,
-          loc: type_token.location
-        )
+        if children.empty?
+          Kumi::Syntax::InputDeclaration.new(
+            name_token.value,
+            domain,
+            type_token.metadata[:type_name],
+            children,
+            loc: type_token.location
+          )
+        else
+          Kumi::Syntax::InputDeclaration.new(
+            name_token.value,
+            domain,
+            type_token.metadata[:type_name],
+            children,
+            :field,
+            loc: type_token.location
+          )
+        end
       end
 
       def parse_domain_specification
@@ -175,7 +186,7 @@ module Kumi
         start_token = current_token
         start_value = start_token.type == :integer ? start_token.value.to_i : start_token.value.to_f
         advance
-        
+
         case current_token.type
         when :dot_dot
           # Inclusive range: start..end
@@ -199,14 +210,14 @@ module Kumi
 
       def convert_array_expression_to_ruby_array(array_expr)
         return nil unless array_expr.is_a?(Kumi::Syntax::ArrayExpression)
-        
+
         array_expr.elements.map do |element|
           if element.is_a?(Kumi::Syntax::Literal)
             element.value
           else
             # For non-literal elements, we'd need more complex evaluation
             # For now, just return the element as-is
-            element  
+            element
           end
         end
       end
@@ -268,10 +279,10 @@ module Kumi
         when :on
           on_token = advance_and_return_token
           condition = parse_expression
-          
-          # Wrap simple trait references in all? to match Ruby DSL behavior
+
+          # Wrap simple trait references in cascade_and to match Ruby DSL behavior
           condition = wrap_condition_in_all(condition) if simple_trait_reference?(condition)
-          
+
           expect_token(:comma)
           result = parse_expression
 
@@ -559,10 +570,9 @@ module Kumi
         condition.is_a?(Kumi::Syntax::DeclarationReference)
       end
 
-      # Helper method to wrap condition in all? function call
+      # Helper method to wrap condition in cascade_and function call
       def wrap_condition_in_all(condition)
-        array_expr = Kumi::Syntax::ArrayExpression.new([condition], loc: condition.loc)
-        Kumi::Syntax::CallExpression.new(:all?, [array_expr], loc: condition.loc)
+        Kumi::Syntax::CallExpression.new(:cascade_and, [condition], loc: condition.loc)
       end
 
       # Map operator token types to function names for Ruby DSL compatibility

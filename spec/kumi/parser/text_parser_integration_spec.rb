@@ -120,54 +120,44 @@ RSpec.describe 'Kumi::Parser::TextParser Integration' do
 
     it 'produces AST compatible with analyzer for simple schemas' do
       ast = Kumi::Parser::TextParser.parse(working_schema)
-      
+
       expect(ast).to be_a(Kumi::Syntax::Root)
       expect(ast.inputs.length).to eq(2)
-      expect(ast.attributes.length).to eq(1)
-      
+      expect(ast.values.length).to eq(1)
+
       # Should work with analyzer
       expect { Kumi::Analyzer.analyze!(ast) }.not_to raise_error
-      
+
       result = Kumi::Analyzer.analyze!(ast)
       expect(result).to be_a(Kumi::Analyzer::Result)
-    end
-
-    it 'produces AST compatible with compiler for simple schemas' do
-      ast = Kumi::Parser::TextParser.parse(working_schema)
-      result = Kumi::Analyzer.analyze!(ast)
-      
-      expect { Kumi::Compiler.compile(ast, analyzer: result) }.not_to raise_error
-      
-      compiled = Kumi::Compiler.compile(ast, analyzer: result)
-      expect(compiled).to be_a(Kumi::Core::CompiledSchema)
     end
 
     it 'executes simple schemas end-to-end' do
       ast = Kumi::Parser::TextParser.parse(working_schema)
       analysis = Kumi::Analyzer.analyze!(ast)
       compiled = Kumi::Compiler.compile(ast, analyzer: analysis)
-      
+
       # Test execution
-      test_data = { name: "Alice", age: 25 }
+      test_data = { name: 'Alice', age: 25 }
       result = compiled.evaluate(test_data)
-      
-      expect(result.fetch(:greeting)).to eq("Alice")
+
+      expect(result.fetch(:greeting)).to eq('Alice')
     end
 
     it 'parses all new syntax features correctly' do
       ast = Kumi::Parser::TextParser.parse(new_syntax_features)
-      
+
       expect(ast).to be_a(Kumi::Syntax::Root)
       expect(ast.inputs.length).to eq(1)
-      expect(ast.attributes.length).to eq(5)
-      
+      expect(ast.values.length).to eq(5)
+
       # Verify new syntax features are parsed
-      deduction = ast.attributes.find { |a| a.name == :deduction }
+      deduction = ast.values.find { |a| a.name == :deduction }
       expect(deduction.expression).to be_a(Kumi::Syntax::Literal)
-      expect(deduction.expression.value).to eq(14600) # underscore removed
-      
+      expect(deduction.expression.value).to eq(14_600) # underscore removed
+
       # Verify exponent operator is parsed correctly
-      power = ast.attributes.find { |a| a.name == :power }
+      power = ast.values.find { |a| a.name == :power }
       expect(power.expression).to be_a(Kumi::Syntax::CallExpression)
       expect(power.expression.fn_name).to eq(:power)
       expect(power.expression.args.length).to eq(2)
@@ -208,7 +198,7 @@ RSpec.describe 'Kumi::Parser::TextParser Integration' do
       ast = Kumi::Parser::TextParser.parse(valid_for_parse)
       expect(ast).to be_a(Kumi::Syntax::Root)
       expect(ast.inputs).not_to be_empty
-      expect(ast.attributes).not_to be_empty
+      expect(ast.values).not_to be_empty
     end
 
     it 'parse method still raises errors for invalid input' do

@@ -25,7 +25,7 @@
 ## AST Structure & Compatibility
 
 All nodes from `Kumi::Syntax::*` (defined in main kumi gem):
-- `Root(inputs, attributes, traits)`
+- `Root(inputs, values, traits)`
 - `InputDeclaration(name, domain, type, children)`
 - `ValueDeclaration(name, expression)`
 - `TraitDeclaration(name, expression)`
@@ -50,7 +50,7 @@ ast = Kumi::Parser::TextParser.parse(schema)
 puts Kumi::Support::SExpressionPrinter.print(ast)
 # => (Root
 #      inputs: [(InputDeclaration :income :float)]
-#      attributes: [(ValueDeclaration :tax (CallExpression :+ ...))]
+#      values: [(ValueDeclaration :tax (CallExpression :+ ...))]
 #      traits: [(TraitDeclaration :adult (CallExpression :>= ...))])
 ```
 

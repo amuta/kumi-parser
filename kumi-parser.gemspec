@@ -32,7 +32,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   # Dependencies
-  spec.add_dependency 'kumi', '~> 0.0.7'
+  spec.add_dependency 'kumi', '~> 0.0.13'
   spec.add_dependency 'parslet', '~> 2.0'
   spec.add_dependency 'zeitwerk', '~> 2.6'
 

@@ -1,13 +1,13 @@
 module Tax2024Schema
   extend Kumi::Schema
 
-  FED_BREAKS_SINGLE = [0, 11_000, 44_725, 95_375, 205_250, 244_050, 609_350, Float::INFINITY]
-  FED_BREAKS_MARRIED = [0, 22_000, 89_450, 190_750, 364_200, 462_500, 693_750, Float::INFINITY]
-  FED_BREAKS_SEPARATE = [0, 11_000, 44_725, 95_375, 182_100, 231_250, 346_875, Float::INFINITY]
-  FED_BREAKS_HOH = [0, 15_700, 59_850, 95_350, 193_350, 244_050, 609_350, Float::INFINITY]
+  FED_BREAKS_SINGLE = [11_000, 44_725, 95_375, 205_250, 244_050, 609_350, Float::INFINITY]
+  FED_BREAKS_MARRIED = [22_000, 89_450, 190_750, 364_200, 462_500, 693_750, Float::INFINITY]
+  FED_BREAKS_SEPARATE = [11_000, 44_725, 95_375, 182_100, 231_250, 346_875, Float::INFINITY]
+  FED_BREAKS_HOH = [15_700, 59_850, 95_350, 193_350, 244_050, 609_350, Float::INFINITY]
   FED_RATES = [0.10, 0.12, 0.22, 0.24, 0.32, 0.35, 0.37]
 
-  schema do
+  build_syntax_tree do
     input do
       float  :income
       string :filing_status
@@ -103,10 +103,10 @@ RSpec.describe 'Kumi::Parser::TextParser Integration' do
                 fn(:max, [input.income - std_deduction, 0])
 
           value :fed_breaks do
-            on  single,   [0, 11_000, 44_725, 95_375, 205_250, 244_050, 609_350, Float::INFINITY]
-            on  married,  [0, 22_000, 89_450, 190_750, 364_200, 462_500, 693_750, Float::INFINITY]
-            on  separate, [0, 11_000, 44_725, 95_375, 182_100, 231_250, 346_875, Float::INFINITY]
-            on  hoh,      [0, 15_700, 59_850, 95_350, 193_350, 244_050, 609_350, Float::INFINITY]
+            on  single,   [11_000, 44_725, 95_375, 205_250, 244_050, 609_350, Float::INFINITY]
+            on  married,  [22_000, 89_450, 190_750, 364_200, 462_500, 693_750, Float::INFINITY]
+            on  separate, [11_000, 44_725, 95_375, 182_100, 231_250, 346_875, Float::INFINITY]
+            on  hoh,      [15_700, 59_850, 95_350, 193_350, 244_050, 609_350, Float::INFINITY]
           end
 
           value :fed_rates, [0.10, 0.12, 0.22, 0.24, 0.32, 0.35, 0.37]
@@ -164,5 +164,6 @@ RSpec.describe 'Kumi::Parser::TextParser Integration' do
         expect(text_parsed).to eq(ruby_parsed)
       end
     end
+
   end
 end

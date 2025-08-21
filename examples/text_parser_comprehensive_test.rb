@@ -318,7 +318,7 @@ if __FILE__ == $0
       ast = Kumi::TextParser.parse(schema_text)
       puts "\nParsed successfully!"
       puts "- Input fields: #{ast.inputs.map(&:name).join(', ')}"
-      puts "- Values: #{ast.attributes.count}"
+      puts "- Values: #{ast.values.count}"
       puts "- Traits: #{ast.traits.count}"
     else
       puts '❌ Schema has errors:'
