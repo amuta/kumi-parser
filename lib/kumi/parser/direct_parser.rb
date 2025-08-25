@@ -273,18 +273,35 @@ module Kumi
         Kumi::Syntax::CascadeExpression.new(cases, loc: start_token.location)
       end
 
-      # Case expression: 'on condition, result' or 'base result'
+      # Case expression: 'on condition1, condition2, ..., result' or 'base result'
       def parse_case_expression
         case current_token.type
         when :on
           on_token = advance_and_return_token
-          condition = parse_expression
-
-          # Wrap simple trait references in cascade_and to match Ruby DSL behavior
-          condition = wrap_condition_in_all(condition) if simple_trait_reference?(condition)
-
-          expect_token(:comma)
-          result = parse_expression
+          
+          # Parse all comma-separated expressions
+          expressions = []
+          expressions << parse_expression
+          
+          # Continue parsing comma-separated expressions until end of case
+          while current_token.type == :comma
+            advance # consume comma
+            expressions << parse_expression
+          end
+          
+          # Last expression is the result, all others are conditions
+          result = expressions.pop
+          conditions = expressions
+          
+          # Combine conditions appropriately
+          if conditions.length == 1
+            condition = conditions[0]
+            # Wrap simple trait references in cascade_and to match Ruby DSL behavior
+            condition = wrap_condition_in_all(condition) if simple_trait_reference?(condition)
+          else
+            # Multiple conditions: combine with cascade_and
+            condition = Kumi::Syntax::CallExpression.new(:cascade_and, conditions, loc: on_token.location)
+          end
 
           Kumi::Syntax::CaseExpression.new(condition, result, loc: on_token.location)
 
@@ -569,6 +586,7 @@ module Kumi
       def simple_trait_reference?(condition)
         condition.is_a?(Kumi::Syntax::DeclarationReference)
       end
+
 
       # Helper method to wrap condition in cascade_and function call
       def wrap_condition_in_all(condition)
