@@ -33,8 +33,8 @@ schema do
 
   # Simple cascade using traits that work within same scope
   value :org_classification do
-    on large_organization, "Enterprise"
-    base "Standard"
+    on large_organization, 'Enterprise'
+    base 'Standard'
   end
 
   # Aggregations that work properly

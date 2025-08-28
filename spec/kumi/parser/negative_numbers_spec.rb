@@ -380,7 +380,6 @@ RSpec.describe 'Negative Numbers Support' do
   private
 
   def tokenize(text)
-    require_relative '../../../lib/kumi/parser/smart_tokenizer'
     Kumi::Parser::SmartTokenizer.new(text).tokenize
   end
 

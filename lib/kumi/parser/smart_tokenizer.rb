@@ -26,7 +26,7 @@ module Kumi
           when nil then break
           when "\n" then handle_newline
           when '#' then consume_comment
-          when '"' then consume_string
+          when '"', "'" then consume_string
           when /\d/ then consume_number
           when '-'
             if peek_char && peek_char.match?(/\d/)
@@ -95,10 +95,11 @@ module Kumi
 
       def consume_string
         start_column = @column
+        quote_char = current_char # Remember which quote type we're using
         advance # skip opening quote
 
         string_content = ''
-        while current_char && current_char != '"'
+        while current_char && current_char != quote_char
           if current_char == '\\'
             advance
             # Handle escape sequences
@@ -108,6 +109,7 @@ module Kumi
             when 'r' then string_content += "\r"
             when '\\' then string_content += '\\'
             when '"' then string_content += '"'
+            when "'" then string_content += "'"
             else
               string_content += current_char if current_char
             end
@@ -117,7 +119,7 @@ module Kumi
           advance
         end
 
-        raise_tokenizer_error('Unterminated string literal') if current_char != '"'
+        raise_tokenizer_error('Unterminated string literal') if current_char != quote_char
 
         advance # skip closing quote
 

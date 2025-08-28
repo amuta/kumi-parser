@@ -110,7 +110,17 @@ module Kumi
         end
 
         advance
-        name_token = expect_token(:symbol)
+        
+        # Handle element syntax: element :type, :name
+        if type_token.metadata[:type_name] == :element
+          element_type_token = expect_token(:symbol)
+          expect_token(:comma)
+          name_token = expect_token(:symbol)
+          actual_type = element_type_token.value
+        else
+          name_token = expect_token(:symbol)
+          actual_type = type_token.metadata[:type_name]
+        end
 
         # Handle domain specification: ', domain: [...]'
         domain = nil
@@ -126,9 +136,9 @@ module Kumi
           end
         end
 
-        # Handle nested array and hash declarations
+        # Handle nested array, hash, and element declarations
         children = []
-        if %i[array hash].include?(type_token.metadata[:type_name]) && current_token.type == :do
+        if %i[array hash element].include?(actual_type) && current_token.type == :do
           advance # consume 'do'
           skip_comments_and_newlines
 
@@ -147,7 +157,7 @@ module Kumi
           Kumi::Syntax::InputDeclaration.new(
             name_token.value,
             domain,
-            type_token.metadata[:type_name],
+            actual_type,
             children,
             loc: type_token.location
           )
@@ -155,7 +165,7 @@ module Kumi
           Kumi::Syntax::InputDeclaration.new(
             name_token.value,
             domain,
-            type_token.metadata[:type_name],
+            actual_type,
             children,
             :field,
             loc: type_token.location

@@ -58,15 +58,21 @@ end
 
 **Function calls**: `fn(:name, arg1, arg2, ...)`  
 **Operators**: `+` `-` `*` `/` `%` `>` `<` `>=` `<=` `==` `!=` `&` `|`  
-**References**: `input.field`, `value_name`, `array[index]`
+**References**: `input.field`, `value_name`, `array[index]`  
+**Strings**: Both `"double"` and `'single'` quotes supported  
+**Element syntax**: `element :type, :name` for array element specifications
+
+## Ruby DSL Differences
+
+**String concatenation**: Ruby DSL evaluates `"Hello" + "World"` → `Literal("HelloWorld")`, text parser → `CallExpression(:add, [...])`.
+
+**Semantically equivalent** - both should execute identically.
 
 ## Architecture
 
 - `smart_tokenizer.rb` - Context-aware tokenization with embedded metadata
 - `direct_ast_parser.rb` - Recursive descent parser, direct AST construction
 - `token_metadata.rb` - Token types, precedence, and semantic hints
-
-See `docs/` for technical details.
 
 ## License
 

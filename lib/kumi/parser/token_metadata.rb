@@ -32,6 +32,7 @@ module Kumi
       BOOLEAN_TYPE = :boolean_type   # boolean
       ANY_TYPE = :any_type           # any
       ARRAY_TYPE = :array_type       # array
+      ELEMENT_TYPE = :element_type   # element
 
       # Function keywords
       FN = :fn
@@ -148,6 +149,11 @@ module Kumi
         category: :type_keyword,
         starts_declaration: true,
         type_name: :hash
+      },
+      element_type: {
+        category: :type_keyword,
+        starts_declaration: true,
+        type_name: :element
       },
 
       # Function keyword
@@ -385,7 +391,8 @@ module Kumi
       'boolean' => :boolean_type,
       'any' => :any_type,
       'array' => :array_type,
-      'hash' => :hash_type
+      'hash' => :hash_type,
+      'element' => :element_type
     }.freeze
 
     # Opener to closer mappings for error recovery
