@@ -2,6 +2,6 @@
 
 module Kumi
   module Parser
-    VERSION = '0.0.12'
+    VERSION = '0.0.13'
   end
 end
