@@ -25,7 +25,6 @@ module Kumi
       def peek_token(offset = 1)
         peek_pos = @pos + offset
         return @tokens.last if peek_pos >= @tokens.length # Return EOF
-
         @tokens[peek_pos]
       end
 
@@ -72,7 +71,6 @@ module Kumi
 
         expect_token(:end)
 
-        # Construct Root with exact AST.md structure
         Kumi::Syntax::Root.new(
           input_declarations,
           value_declarations, # values
@@ -91,9 +89,7 @@ module Kumi
 
         until %i[end eof].include?(current_token.type)
           break unless current_token.metadata[:category] == :type_keyword
-
           declarations << parse_input_declaration
-
           skip_comments_and_newlines
         end
 
@@ -101,28 +97,31 @@ module Kumi
         declarations
       end
 
-      # Input declaration: 'integer :name' or 'array :items do ... end'
+      # Input declaration: 'integer :name' or 'array :items do ... end' or 'element :type, :name'
+      #
+      # IMPORTANT: For array nodes with a block, this sets the node's access_mode:
+      #   - :element if the block contains exactly one child introduced by `element`
+      #   - :field   otherwise
       def parse_input_declaration
         type_token = current_token
-
-        if type_token.metadata[:category] != :type_keyword
+        unless type_token.metadata[:category] == :type_keyword
           raise_parse_error("Expected type keyword, got #{type_token.type}")
         end
-
         advance
-        
-        # Handle element syntax: element :type, :name
-        if type_token.metadata[:type_name] == :element
+
+        # element :type, :name  (syntactic sugar: the child was declared via `element`)
+        declared_with_element = (type_token.metadata[:type_name] == :element)
+        if declared_with_element
           element_type_token = expect_token(:symbol)
           expect_token(:comma)
           name_token = expect_token(:symbol)
           actual_type = element_type_token.value
         else
-          name_token = expect_token(:symbol)
+          name_token  = expect_token(:symbol)
           actual_type = type_token.metadata[:type_name]
         end
 
-        # Handle domain specification: ', domain: [...]'
+        # Optional: ', domain: ...'
         domain = nil
         if current_token.type == :comma
           advance
@@ -131,13 +130,15 @@ module Kumi
             expect_token(:colon)
             domain = parse_domain_specification
           else
-            # Put comma back for other parsers
             @pos -= 1
           end
         end
 
-        # Handle nested array, hash, and element declarations
+        # Parse nested declarations for block forms
         children = []
+        any_element_children = false
+        any_field_children   = false
+
         if %i[array hash element].include?(actual_type) && current_token.type == :do
           advance # consume 'do'
           skip_comments_and_newlines
@@ -145,12 +146,31 @@ module Kumi
           until %i[end eof].include?(current_token.type)
             break unless current_token.metadata[:category] == :type_keyword
 
-            children << parse_input_declaration
+            # Syntactic decision (NO counting): is this child introduced by `element`?
+            child_is_element_keyword = (current_token.metadata[:type_name] == :element)
+            any_element_children ||= child_is_element_keyword
+            any_field_children   ||= !child_is_element_keyword
 
+            children << parse_input_declaration
             skip_comments_and_newlines
           end
 
           expect_token(:end)
+
+          # For array blocks, access_mode derives strictly from syntax:
+          # - :element if ANY direct child used `element`
+          # - :field   if NONE used `element`
+          # Mixing is invalid.
+          if actual_type == :array
+            if any_element_children && any_field_children
+              raise_parse_error("array :#{name_token.value} mixes `element` and field children; choose one style")
+            end
+            access_mode = any_element_children ? :element : :field
+          else
+            access_mode = :field # objects/hashes with blocks behave like field containers
+          end
+        else
+          access_mode = nil # leaves carry no access_mode
         end
 
         if children.empty?
@@ -162,71 +182,60 @@ module Kumi
             loc: type_token.location
           )
         else
+          # 5th positional arg in your existing ctor is access_mode
           Kumi::Syntax::InputDeclaration.new(
             name_token.value,
             domain,
             actual_type,
             children,
-            :field,
+            access_mode || :field,
             loc: type_token.location
           )
         end
       end
 
       def parse_domain_specification
-        # Parse domain specifications: domain: ["x", "y"], domain: [1, 2, 3], domain: 1..10, domain: 1...10
         case current_token.type
         when :lbracket
-          # Array domain: ["a", "b", "c"] or [1, 2, 3]
           array_expr = parse_array_literal
-          # Convert ArrayExpression to Ruby Array for analyzer compatibility
           convert_array_expression_to_ruby_array(array_expr)
         when :integer, :float
-          # Range domain: 1..10 or 1...10
           parse_range_domain
         else
-          # Skip unknown domain specs for now
           advance until %i[comma newline eof end].include?(current_token.type)
           nil
         end
       end
 
       def parse_range_domain
-        # Parse numeric ranges like 1..10 or 0.0...100.0
         start_token = current_token
         start_value = start_token.type == :integer ? start_token.value.to_i : start_token.value.to_f
         advance
 
         case current_token.type
         when :dot_dot
-          # Inclusive range: start..end
-          advance # consume ..
+          advance
           end_token = current_token
           end_value = end_token.type == :integer ? end_token.value.to_i : end_token.value.to_f
           advance
           (start_value..end_value)
         when :dot_dot_dot
-          # Exclusive range: start...end
-          advance # consume ...
+          advance
           end_token = current_token
           end_value = end_token.type == :integer ? end_token.value.to_i : end_token.value.to_f
           advance
           (start_value...end_value)
         else
-          # Just a single number, treat as single-element array
           [start_value]
         end
       end
 
       def convert_array_expression_to_ruby_array(array_expr)
         return nil unless array_expr.is_a?(Kumi::Syntax::ArrayExpression)
-
         array_expr.elements.map do |element|
           if element.is_a?(Kumi::Syntax::Literal)
             element.value
           else
-            # For non-literal elements, we'd need more complex evaluation
-            # For now, just return the element as-is
             element
           end
         end
@@ -238,10 +247,8 @@ module Kumi
         name_token = expect_token(:symbol)
 
         if current_token.type == :do
-          # Cascade expression: value :name do ... end
           expression = parse_cascade_expression
         else
-          # Simple expression: value :name, expression
           expect_token(:comma)
           expression = parse_expression
         end
@@ -271,55 +278,42 @@ module Kumi
       def parse_cascade_expression
         start_token = expect_token(:do)
         cases = []
-
         skip_comments_and_newlines
         while %i[on base].include?(current_token.type)
           cases << parse_case_expression
           skip_comments_and_newlines
         end
-
         expect_token(:end)
-
         Kumi::Syntax::CascadeExpression.new(cases, loc: start_token.location)
       end
 
-      # Case expression: 'on condition1, condition2, ..., result' or 'base result'
       def parse_case_expression
         case current_token.type
         when :on
           on_token = advance_and_return_token
-          
-          # Parse all comma-separated expressions
+
           expressions = []
           expressions << parse_expression
-          
-          # Continue parsing comma-separated expressions until end of case
           while current_token.type == :comma
-            advance # consume comma
+            advance
             expressions << parse_expression
           end
-          
-          # Last expression is the result, all others are conditions
+
           result = expressions.pop
           conditions = expressions
-          
-          # Combine conditions appropriately
-          if conditions.length == 1
-            condition = conditions[0]
-            # Wrap simple trait references in cascade_and to match Ruby DSL behavior
-            condition = wrap_condition_in_all(condition) if simple_trait_reference?(condition)
-          else
-            # Multiple conditions: combine with cascade_and
-            condition = Kumi::Syntax::CallExpression.new(:cascade_and, conditions, loc: on_token.location)
-          end
+          condition =
+            if conditions.length == 1
+              c = conditions[0]
+              simple_trait_reference?(c) ? wrap_condition_in_all(c) : c
+            else
+              Kumi::Syntax::CallExpression.new(:cascade_and, conditions, loc: on_token.location)
+            end
 
           Kumi::Syntax::CaseExpression.new(condition, result, loc: on_token.location)
 
         when :base
           base_token = advance_and_return_token
           result = parse_expression
-
-          # Base case has condition = true
           true_literal = Kumi::Syntax::Literal.new(true, loc: base_token.location)
           Kumi::Syntax::CaseExpression.new(true_literal, result, loc: base_token.location)
 
@@ -334,26 +328,22 @@ module Kumi
         token
       end
 
-      # Expression parsing with operator precedence
+      # Pratt parser for expressions
       def parse_expression(min_precedence = 0)
         left = parse_primary_expression
-
-        # Skip whitespace before checking for operators
         skip_comments_and_newlines
 
         while current_token.operator? && current_token.precedence >= min_precedence
           operator_token = current_token
           advance
-
-          # Skip whitespace after operator
           skip_comments_and_newlines
 
-          # Use embedded associativity from token metadata
-          next_min_precedence = if operator_token.left_associative?
-                                  operator_token.precedence + 1
-                                else
-                                  operator_token.precedence
-                                end
+          next_min_precedence =
+            if operator_token.left_associative?
+              operator_token.precedence + 1
+            else
+              operator_token.precedence
+            end
 
           right = parse_expression(next_min_precedence)
           left = Kumi::Syntax::CallExpression.new(
@@ -361,8 +351,6 @@ module Kumi
             [left, right],
             loc: operator_token.location
           )
-
-          # Skip whitespace before checking for next operator
           skip_comments_and_newlines
         end
 
@@ -374,7 +362,6 @@ module Kumi
 
         case token.type
         when :integer, :float, :string, :boolean, :constant
-          # Direct AST construction using token metadata
           value = convert_literal_value(token)
           advance
           Kumi::Syntax::Literal.new(value, loc: token.location)
@@ -392,7 +379,6 @@ module Kumi
           end
 
         when :input
-          # Handle input references in expressions (input.field)
           if peek_token.type == :dot
             parse_input_reference_from_input_token
           else
@@ -400,7 +386,7 @@ module Kumi
           end
 
         when :lparen
-          advance # consume '('
+          advance
           expr = parse_expression
           expect_token(:rparen)
           expr
@@ -412,11 +398,9 @@ module Kumi
           parse_function_call_from_fn_token
 
         when :subtract
-          # Handle unary minus operator: -expression
-          advance # consume '-'
+          advance
           skip_comments_and_newlines
           operand = parse_primary_expression
-          # Convert to subtraction from zero: (subtract 0 operand)
           Kumi::Syntax::CallExpression.new(
             :subtract,
             [Kumi::Syntax::Literal.new(0, loc: token.location), operand],
@@ -424,7 +408,6 @@ module Kumi
           )
 
         when :newline, :comment
-          # Skip newlines and comments in expressions
           skip_comments_and_newlines
           parse_primary_expression
 
@@ -438,10 +421,8 @@ module Kumi
         expect_token(:dot)
 
         path = [expect_field_name_token.to_sym]
-
-        # Handle nested access: input.field.subfield
         while current_token.type == :dot
-          advance # consume '.'
+          advance
           path << expect_field_name_token.to_sym
         end
 
@@ -453,14 +434,12 @@ module Kumi
       end
 
       def parse_input_reference_from_input_token
-        input_token = expect_token(:input) # 'input' keyword token
+        input_token = expect_token(:input)
         expect_token(:dot)
 
         path = [expect_field_name_token.to_sym]
-
-        # Handle nested access: input.field.subfield
         while current_token.type == :dot
-          advance # consume '.'
+          advance
           path << expect_field_name_token.to_sym
         end
 
@@ -478,54 +457,40 @@ module Kumi
         expect_token(:rbracket)
 
         base_ref = Kumi::Syntax::DeclarationReference.new(name_token.value.to_sym, loc: name_token.location)
-        Kumi::Syntax::CallExpression.new(
-          :at,
-          [base_ref, index_expr],
-          loc: name_token.location
-        )
+        Kumi::Syntax::CallExpression.new(:at, [base_ref, index_expr], loc: name_token.location)
       end
 
       def parse_function_call
-        fn_token = expect_token(:identifier) # 'fn'
-
+        fn_token = expect_token(:identifier)
         if current_token.type == :lparen
-          # Only syntax: fn(:symbol, args...)
-          advance # consume '('
+          advance
           fn_name_token = expect_token(:symbol)
           fn_name = fn_name_token.value
-
           args = []
           while current_token.type == :comma
-            advance # consume comma
+            advance
             args << parse_expression
           end
-
           expect_token(:rparen)
           Kumi::Syntax::CallExpression.new(fn_name, args, loc: fn_name_token.location)
-
         else
           raise_parse_error("Expected '(' after 'fn'")
         end
       end
 
       def parse_function_call_from_fn_token
-        fn_token = expect_token(:fn) # 'fn' keyword token
-
+        fn_token = expect_token(:fn)
         if current_token.type == :lparen
-          # Only syntax: fn(:symbol, args...)
-          advance # consume '('
+          advance
           fn_name_token = expect_token(:symbol)
           fn_name = fn_name_token.value
-
           args = []
           while current_token.type == :comma
-            advance # consume comma
+            advance
             args << parse_expression
           end
-
           expect_token(:rparen)
           Kumi::Syntax::CallExpression.new(fn_name, args, loc: fn_name_token.location)
-
         else
           raise_parse_error("Expected '(' after 'fn'")
         end
@@ -533,40 +498,36 @@ module Kumi
 
       def parse_argument_list
         args = []
-
         unless current_token.type == :rparen
           args << parse_expression
           while current_token.type == :comma
-            advance # consume comma
+            advance
             args << parse_expression
           end
         end
-
         args
       end
 
       def parse_array_literal
         start_token = expect_token(:lbracket)
         elements = []
-
         unless current_token.type == :rbracket
           elements << parse_expression
           while current_token.type == :comma
-            advance # consume comma
+            advance
             elements << parse_expression unless current_token.type == :rbracket
           end
         end
-
         expect_token(:rbracket)
         Kumi::Syntax::ArrayExpression.new(elements, loc: start_token.location)
       end
 
       def convert_literal_value(token)
         case token.type
-        when :integer then token.value.gsub('_', '').to_i
-        when :float then token.value.gsub('_', '').to_f
-        when :string then token.value
-        when :boolean then token.value == 'true'
+        when :integer  then token.value.gsub('_', '').to_i
+        when :float    then token.value.gsub('_', '').to_f
+        when :string   then token.value
+        when :boolean  then token.value == 'true'
         when :constant
           case token.value
           when 'Float::INFINITY' then Float::INFINITY
@@ -577,7 +538,6 @@ module Kumi
       end
 
       def expect_field_name_token
-        # Field names can be identifiers or keywords (like 'base', 'input', etc.)
         token = current_token
         if token.identifier? || token.keyword?
           advance
@@ -592,28 +552,24 @@ module Kumi
         raise Errors::ParseError.new(message, token: current_token)
       end
 
-      # Helper method to check if condition is a simple trait reference
       def simple_trait_reference?(condition)
         condition.is_a?(Kumi::Syntax::DeclarationReference)
       end
 
-
-      # Helper method to wrap condition in cascade_and function call
       def wrap_condition_in_all(condition)
         Kumi::Syntax::CallExpression.new(:cascade_and, [condition], loc: condition.loc)
       end
 
-      # Map operator token types to function names for Ruby DSL compatibility
       def map_operator_token_to_function_name(token_type)
         case token_type
-        when :eq then :==
-        when :ne then :!=
-        when :gt then :>
-        when :lt then :<
+        when :eq  then :==
+        when :ne  then :!=
+        when :gt  then :>
+        when :lt  then :<
         when :gte then :>=
         when :lte then :<=
         when :and then :and
-        when :or then :or
+        when :or  then :or
         when :exponent then :power
         else token_type
         end

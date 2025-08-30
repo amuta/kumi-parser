@@ -119,7 +119,7 @@ RSpec.describe 'Element Nested Schema Support' do
             array :teams do
               string :team_name
               array :members do
-                string :employee_name
+                element :string, :employee_name
               end
             end
           end
@@ -140,8 +140,8 @@ RSpec.describe 'Element Nested Schema Support' do
       build_syntax_tree do
         input do
           array :coordinates do
-            array :point do
-              float :axis
+            element :array, :point do
+              element :float, :axis
             end
           end
         end
