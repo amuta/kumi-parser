@@ -377,9 +377,6 @@ module Kumi
             parse_input_reference
           elsif peek_token.type == :lbracket
             parse_array_access_reference
-            # elsif token.value == 'fn'
-            # binding.pry
-            # parse_function_call
           else
             advance
             Kumi::Syntax::DeclarationReference.new(token.value.to_sym, loc: token.location)
