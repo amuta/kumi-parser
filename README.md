@@ -57,7 +57,7 @@ end
 ```
 
 **Function calls**: `fn(:name, arg1, arg2, ...)`  
-**Operators**: `+` `-` `*` `/` `%` `>` `<` `>=` `<=` `==` `!=` `&` `|`  
+**Operators**: `+` `-` `*` `**` `` `/` `%` `>` `<` `>=` `<=` `==` `!=` `&` `|`  
 **References**: `input.field`, `value_name`, `array[index]`  
 **Strings**: Both `"double"` and `'single'` quotes supported  
 **Element syntax**: `element :type, :name` for array element specifications
