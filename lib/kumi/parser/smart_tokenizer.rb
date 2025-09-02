@@ -168,11 +168,13 @@ module Kumi
           advance # consume second :
           constant_name = consume_while { |c| c.match?(/[a-zA-Z0-9_]/) }
           full_constant = "#{identifier}::#{constant_name}"
-          
+
           location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
           @tokens << Token.new(:constant, full_constant, location, Kumi::Parser::TOKEN_METADATA[:constant])
           return
         end
+
+        location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
 
         # Check if it's a keyword
         if keyword_type = Kumi::Parser::KEYWORDS[identifier]
@@ -188,23 +190,29 @@ module Kumi
             metadata[:closes_context] = closed_context
           end
 
-          location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
           @tokens << Token.new(keyword_type, identifier, location, metadata)
-        else
-          # It's an identifier - determine its role based on context
-          metadata = Kumi::Parser::TOKEN_METADATA[:identifier].dup
-
-          # Add context-specific metadata
-          case current_context
-          when :input
-            metadata[:context] = :input_declaration
-          when :schema
-            metadata[:context] = :schema_body
-          end
-
-          location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
-          @tokens << Token.new(:identifier, identifier, location, metadata)
+          return
         end
+
+        # Check if its a function sugar
+        if Kumi::Parser::FUNCTION_SUGAR[identifier]
+          metadata = Kumi::Parser::TOKEN_METADATA[:function_sugar].dup
+          @tokens << Token.new(:function_sugar, identifier, location, metadata)
+          return
+        end
+
+        # Otherwise is an Idenfier
+        metadata = Kumi::Parser::TOKEN_METADATA[:identifier].dup
+
+        # Add context-specific metadata
+        case current_context
+        when :input
+          metadata[:context] = :input_declaration
+        when :schema
+          metadata[:context] = :schema_body
+        end
+        
+        @tokens << Token.new(:identifier, identifier, location, metadata)
       end
 
       def consume_symbol_or_colon

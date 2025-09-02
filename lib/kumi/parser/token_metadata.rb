@@ -38,8 +38,8 @@ module Kumi
       FN = :fn
 
       # Operators (by precedence)
-      EXPONENT = :exponent      # **
-      MULTIPLY = :multiply       # *
+      EXPONENT = :exponent # **
+      MULTIPLY = :multiply # *
       DIVIDE = :divide          # /
       MODULO = :modulo          # %
       ADD = :add                # +
@@ -67,7 +67,7 @@ module Kumi
       # Special
       NEWLINE = :newline
       EOF = :eof
-      COMMENT = :comment        # # comment
+      COMMENT = :comment # # comment
     end
 
     # Rich metadata for each token type
@@ -159,6 +159,11 @@ module Kumi
       # Function keyword
       fn: {
         category: :keyword,
+        function_keyword: true,
+        starts_expression: true
+      },
+
+      function_sugar: {
         function_keyword: true,
         starts_expression: true
       },
@@ -371,6 +376,10 @@ module Kumi
       '&' => :and,
       '|' => :or
     }.freeze
+
+    FUNCTION_SUGAR = {
+      'select' => '__select__'
+    }
 
     # Keywords mapping
     KEYWORDS = {

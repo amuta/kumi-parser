@@ -25,6 +25,7 @@ module Kumi
       def peek_token(offset = 1)
         peek_pos = @pos + offset
         return @tokens.last if peek_pos >= @tokens.length # Return EOF
+
         @tokens[peek_pos]
       end
 
@@ -89,6 +90,7 @@ module Kumi
 
         until %i[end eof].include?(current_token.type)
           break unless current_token.metadata[:category] == :type_keyword
+
           declarations << parse_input_declaration
           skip_comments_and_newlines
         end
@@ -232,6 +234,7 @@ module Kumi
 
       def convert_array_expression_to_ruby_array(array_expr)
         return nil unless array_expr.is_a?(Kumi::Syntax::ArrayExpression)
+
         array_expr.elements.map do |element|
           if element.is_a?(Kumi::Syntax::Literal)
             element.value
@@ -365,14 +368,18 @@ module Kumi
           value = convert_literal_value(token)
           advance
           Kumi::Syntax::Literal.new(value, loc: token.location)
+        when :function_sugar
+          parse_function_sugar
 
         when :identifier
+
           if token.value == 'input' && peek_token.type == :dot
             parse_input_reference
           elsif peek_token.type == :lbracket
             parse_array_access_reference
-          elsif token.value == 'fn'
-            parse_function_call
+            # elsif token.value == 'fn'
+            # binding.pry
+            # parse_function_call
           else
             advance
             Kumi::Syntax::DeclarationReference.new(token.value.to_sym, loc: token.location)
@@ -395,7 +402,8 @@ module Kumi
           parse_array_literal
 
         when :fn
-          parse_function_call_from_fn_token
+          # expect_token(:fn)
+          parse_function_call
 
         when :subtract
           advance
@@ -460,26 +468,15 @@ module Kumi
         Kumi::Syntax::CallExpression.new(:at, [base_ref, index_expr], loc: name_token.location)
       end
 
-      def parse_function_call
-        fn_token = expect_token(:identifier)
-        if current_token.type == :lparen
-          advance
-          fn_name_token = expect_token(:symbol)
-          fn_name = fn_name_token.value
-          args = []
-          while current_token.type == :comma
-            advance
-            args << parse_expression
-          end
-          expect_token(:rparen)
-          Kumi::Syntax::CallExpression.new(fn_name, args, loc: fn_name_token.location)
-        else
-          raise_parse_error("Expected '(' after 'fn'")
-        end
+      def parse_function_sugar
+        sugar_token = current_token
+        advance
+        args = parse_argument_list
+        Kumi::Syntax::CallExpression.new(sugar_token.value.to_sym, args, loc: sugar_token.location)
       end
 
-      def parse_function_call_from_fn_token
-        fn_token = expect_token(:fn)
+      def parse_function_call
+        advance
         if current_token.type == :lparen
           advance
           fn_name_token = expect_token(:symbol)
@@ -498,6 +495,8 @@ module Kumi
 
       def parse_argument_list
         args = []
+
+        expect_token(:lparen)
         unless current_token.type == :rparen
           args << parse_expression
           while current_token.type == :comma
@@ -505,6 +504,8 @@ module Kumi
             args << parse_expression
           end
         end
+        expect_token(:rparen)
+
         args
       end
 
