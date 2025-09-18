@@ -261,7 +261,6 @@ module Kumi
         arity: :binary,
         requires_boolean: true
       },
-
       # Literals with type information
       integer: {
         category: :literal,
@@ -283,7 +282,6 @@ module Kumi
         starts_expression: true,
         ast_class: 'Kumi::Syntax::Literal'
       },
-
       # Identifiers and references
       identifier: {
         category: :identifier,
@@ -344,6 +342,15 @@ module Kumi
         terminates_expression: true
       },
 
+      left_brace: {
+        category: :punctuation,
+        opens_scope: :hash
+      },
+      right_brace: {
+        category: :punctuation,
+        closes_scope: :hash
+      },
+
       # Special tokens
       newline: {
         category: :whitespace,
@@ -365,6 +372,8 @@ module Kumi
       ')' => :rparen,
       '[' => :lbracket,
       ']' => :rbracket,
+      '{' => :left_brace,
+      '}' => :right_brace,
       ',' => :comma,
       '.' => :dot,
       ':' => :colon,
@@ -374,7 +383,8 @@ module Kumi
       '/' => :divide,
       '%' => :modulo,
       '&' => :and,
-      '|' => :or
+      '|' => :or,
+      '=>' => :arrow
     }.freeze
 
     FUNCTION_SUGAR = {

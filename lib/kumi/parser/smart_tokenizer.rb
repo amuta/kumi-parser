@@ -34,7 +34,7 @@ module Kumi
             else
               consume_operator_or_punctuation
             end
-          when /[a-zA-Z_]/ then consume_identifier_or_keyword
+          when /[a-zA-Z_]/ then consume_identifier_or_label_or_keyword
           when ':' then consume_symbol_or_colon
           else
             consume_operator_or_punctuation
@@ -158,26 +158,34 @@ module Kumi
         @tokens << Token.new(token_type, number_str, location, Kumi::Parser::TOKEN_METADATA[token_type])
       end
 
-      def consume_identifier_or_keyword
+      def consume_identifier_or_label_or_keyword
         start_column = @column
-        identifier = consume_while { |c| c.match?(/[a-zA-Z0-9_]/) }
+        identifier_or_label_name = consume_while { |c| c.match?(/[a-zA-Z0-9_]/) }
+        location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
 
-        # Check if it's a constant (e.g., Float::INFINITY)
-        if identifier == 'Float' && current_char == ':' && peek_char == ':'
-          advance # consume first :
-          advance # consume second :
-          constant_name = consume_while { |c| c.match?(/[a-zA-Z0-9_]/) }
-          full_constant = "#{identifier}::#{constant_name}"
-
-          location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
-          @tokens << Token.new(:constant, full_constant, location, Kumi::Parser::TOKEN_METADATA[:constant])
+        # Check if the next character is a colon
+        if current_char == ':'
+          # It's a hash key or a label (e.g., `name:`)
+          advance # consume the colon
+          add_token(:label, identifier_or_label_name, Kumi::Parser::TOKEN_METADATA[:label])
           return
         end
 
-        location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
+        # If it's not a label, proceed to check for keywords and identifiers
+        # The logic below is adapted from your original `consume_identifier_or_keyword` method
+
+        # Check if it's a constant (e.g., Float::INFINITY)
+        if identifier_or_label_name == 'Float' && current_char == ':' && peek_char == ':'
+          advance # consume first :
+          advance # consume second :
+          constant_name = consume_while { |c| c.match?(/[a-zA-Z0-9_]/) }
+          full_constant = "#{identifier_or_label_name}::#{constant_name}"
+          add_token(:constant, full_constant, Kumi::Parser::TOKEN_METADATA[:constant])
+          return
+        end
 
         # Check if it's a keyword
-        if keyword_type = Kumi::Parser::KEYWORDS[identifier]
+        if keyword_type = Kumi::Parser::KEYWORDS[identifier_or_label_name]
           metadata = Kumi::Parser::TOKEN_METADATA[keyword_type].dup
 
           # Update context based on keyword
@@ -189,30 +197,26 @@ module Kumi
             closed_context = @context_stack.pop if @context_stack.length > 1
             metadata[:closes_context] = closed_context
           end
-
-          @tokens << Token.new(keyword_type, identifier, location, metadata)
+          add_token(keyword_type, identifier_or_label_name, metadata)
           return
         end
 
         # Check if its a function sugar
-        if Kumi::Parser::FUNCTION_SUGAR[identifier]
+        if Kumi::Parser::FUNCTION_SUGAR[identifier_or_label_name]
           metadata = Kumi::Parser::TOKEN_METADATA[:function_sugar].dup
-          @tokens << Token.new(:function_sugar, identifier, location, metadata)
+          add_token(:function_sugar, identifier_or_label_name, metadata)
           return
         end
 
-        # Otherwise is an Idenfier
+        # Otherwise is an Identifier
         metadata = Kumi::Parser::TOKEN_METADATA[:identifier].dup
-
-        # Add context-specific metadata
         case current_context
         when :input
           metadata[:context] = :input_declaration
         when :schema
           metadata[:context] = :schema_body
         end
-        
-        @tokens << Token.new(:identifier, identifier, location, metadata)
+        add_token(:identifier, identifier_or_label_name, metadata)
       end
 
       def consume_symbol_or_colon
@@ -240,7 +244,12 @@ module Kumi
         # Handle multi-character operators
         case char
         when '='
-          if peek_char == '='
+          if peek_char == '>'
+            advance
+            advance
+            location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
+            @tokens << Token.new(:arrow, '=>', location, Kumi::Parser::TOKEN_METADATA[:arrow])
+          elsif peek_char == '='
             advance
             advance
             location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)

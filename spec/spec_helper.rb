@@ -2,7 +2,7 @@
 
 require 'bundler/setup'
 require 'kumi-parser'
-
+require 'pry'
 # No need to eager load - using Kumi's syntax
 
 RSpec.configure do |config|

@@ -398,6 +398,9 @@ module Kumi
         when :lbracket
           parse_array_literal
 
+        when :left_brace
+          parse_hash_literal
+
         when :fn
           # expect_token(:fn)
           parse_function_call
@@ -518,6 +521,57 @@ module Kumi
         end
         expect_token(:rbracket)
         Kumi::Syntax::ArrayExpression.new(elements, loc: start_token.location)
+      end
+
+      def parse_hash_literal
+        start_token = expect_token(:left_brace)
+        skip_comments_and_newlines
+        pairs = []
+
+        # Handle empty hash: {}
+        unless current_token.type == :right_brace
+          pairs << parse_hash_pair
+          skip_comments_and_newlines
+
+          while current_token.type == :comma
+            advance
+            skip_comments_and_newlines
+            # Allow trailing comma
+            break if current_token.type == :right_brace
+
+            pairs << parse_hash_pair
+            skip_comments_and_newlines
+          end
+        end
+
+        expect_token(:right_brace)
+        Kumi::Syntax::HashExpression.new(pairs, loc: start_token.location)
+      end
+
+      def parse_hash_pair
+        key_token_type = current_token.type
+        key = case key_token_type
+              when :label, :string
+                value = current_token.value.to_sym if key_token_type == :label
+                advance
+                Kumi::Syntax::Literal.new(value, loc: current_token.location)
+              else
+                raise_parse_error("Hash keys must be symbols (:key) or strings (\"key\"), got #{current_token.type}")
+              end
+
+        skip_comments_and_newlines
+
+        case current_token.type
+        when :arrow
+          advance
+        else
+          raise_parse_error("Expected '=>' in hash pair") unless key_token_type == :label
+        end
+
+        skip_comments_and_newlines
+        value = parse_expression
+
+        [key, value]
       end
 
       def convert_literal_value(token)
