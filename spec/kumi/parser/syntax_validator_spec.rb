@@ -7,14 +7,15 @@ RSpec.describe Kumi::Parser::SyntaxValidator do
     context 'with valid schema' do
       let(:valid_schema) do
         <<~KUMI
-          schema do
-            input do
-              string :name
-              integer :age
+          # comment Line
+            schema do
+              input do
+                string :name
+                integer :age
+              end
+              value :greeting, input.name
+              trait :adult, (input.age >= 18)
             end
-            value :greeting, input.name
-            trait :adult, (input.age >= 18)
-          end
         KUMI
       end
 

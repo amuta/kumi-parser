@@ -10,6 +10,7 @@ module Kumi
       end
 
       def parse
+        skip_comments_and_newlines
         schema_node = parse_schema
         skip_comments_and_newlines
         expect_token(:eof)
