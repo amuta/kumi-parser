@@ -6,7 +6,7 @@ source 'https://rubygems.org'
 gemspec
 
 # Use local development version of kumi
-gem 'kumi'
+# gem 'kumi'
 
 gem 'rake', '~> 13.0'
 gem 'rspec', '~> 3.0'

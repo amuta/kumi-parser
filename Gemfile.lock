@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    kumi-parser (0.0.16)
+    kumi-parser (0.0.18)
       kumi (~> 0.0.13)
       parslet (~> 2.0)
       zeitwerk (~> 2.6)
@@ -77,7 +77,6 @@ PLATFORMS
 
 DEPENDENCIES
   bundler (~> 2.0)
-  kumi
   kumi-parser!
   pry (~> 0.15.2)
   rake (~> 13.0)
@@ -86,4 +85,4 @@ DEPENDENCIES
   simplecov (~> 0.22)
 
 BUNDLED WITH
-   2.7.1
+   2.6.9
