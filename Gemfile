@@ -8,9 +8,8 @@ gemspec
 # Use local development version of kumi
 # gem 'kumi'
 
+gem 'pry', '~> 0.15.2'
 gem 'rake', '~> 13.0'
 gem 'rspec', '~> 3.0'
 gem 'rubocop', '~> 1.21'
 gem 'simplecov', '~> 0.22'
-
-gem 'pry', '~> 0.15.2'
