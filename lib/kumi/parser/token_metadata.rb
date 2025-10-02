@@ -33,6 +33,7 @@ module Kumi
       ANY_TYPE = :any_type           # any
       ARRAY_TYPE = :array_type       # array
       ELEMENT_TYPE = :element_type   # element
+      INDEX_TYPE = :index_type       # index
 
       # Function keywords
       FN = :fn
@@ -154,6 +155,11 @@ module Kumi
         category: :type_keyword,
         starts_declaration: true,
         type_name: :element
+      },
+      index_type: {
+        category: :type_keyword,
+        starts_declaration: true,
+        type_name: :index
       },
 
       # Function keyword
@@ -388,7 +394,9 @@ module Kumi
     }.freeze
 
     FUNCTION_SUGAR = {
-      'select' => '__select__'
+      'select' => '__select__',
+      'shift' => 'shift',
+      'roll' => 'roll'
     }
 
     # Keywords mapping
@@ -411,7 +419,8 @@ module Kumi
       'any' => :any_type,
       'array' => :array_type,
       'hash' => :hash_type,
-      'element' => :element_type
+      'element' => :element_type,
+      'index' => :index_type
     }.freeze
 
     # Opener to closer mappings for error recovery

@@ -114,11 +114,15 @@ module Kumi
 
         # element :type, :name  (syntactic sugar: the child was declared via `element`)
         declared_with_element = (type_token.metadata[:type_name] == :element)
+        declared_with_index = (type_token.metadata[:type_name] == :index)
         if declared_with_element
           element_type_token = expect_token(:symbol)
           expect_token(:comma)
           name_token = expect_token(:symbol)
           actual_type = element_type_token.value
+        elsif declared_with_index
+          name_token  = expect_token(:symbol)
+          actual_type = :index
         else
           name_token  = expect_token(:symbol)
           actual_type = type_token.metadata[:type_name]
@@ -151,8 +155,9 @@ module Kumi
 
             # Syntactic decision (NO counting): is this child introduced by `element`?
             child_is_element_keyword = (current_token.metadata[:type_name] == :element)
+            child_is_index_keyword   = (current_token.metadata[:type_name] == :index)
             any_element_children ||= child_is_element_keyword
-            any_field_children   ||= !child_is_element_keyword
+            any_field_children   ||= !child_is_element_keyword && !child_is_index_keyword
 
             children << parse_input_declaration
             skip_comments_and_newlines
@@ -247,8 +252,12 @@ module Kumi
 
       # Value declaration: 'value :name, expression' or 'value :name do ... end'
       def parse_value_declaration
+        begin
         value_token = expect_token(:value)
         name_token = expect_token(:symbol)
+  rescue => e
+  binding.pry
+  end
 
         if current_token.type == :do
           expression = parse_cascade_expression
@@ -470,44 +479,89 @@ module Kumi
       end
 
       def parse_function_sugar
-        sugar_token = current_token
-        advance
-        args = parse_argument_list
-        Kumi::Syntax::CallExpression.new(sugar_token.value.to_sym, args, loc: sugar_token.location)
+        sugar = current_token
+        advance # e.g. shift(...)
+        expect_token(:lparen)
+        args, opts = parse_args_and_opts_inside_parens
+        Kumi::Syntax::CallExpression.new(sugar.value.to_sym, args, opts, loc: sugar.location)
       end
 
       def parse_function_call
-        advance
-        if current_token.type == :lparen
+        advance # saw :fn
+        expect_token(:lparen)
+        fn_name_token = expect_token(:symbol) # :shift, :roll, etc.
+        args = []
+        opts = {}
+        if current_token.type == :comma
           advance
-          fn_name_token = expect_token(:symbol)
-          fn_name = fn_name_token.value
-          args = []
-          while current_token.type == :comma
-            advance
-            args << parse_expression
-          end
-          expect_token(:rparen)
-          Kumi::Syntax::CallExpression.new(fn_name, args, loc: fn_name_token.location)
+          args, opts = parse_args_and_opts_inside_parens
+        end
+        # expect_token(:rparen)
+        Kumi::Syntax::CallExpression.new(fn_name_token.value, args, loc: fn_name_token.location, opts: opts)
+      end
+
+      def parse_kw_literal_value
+        t = current_token
+        case t.type
+        when :integer  then advance
+                            t.value.delete('_').to_i
+        when :float    then advance
+                            t.value.delete('_').to_f
+        when :string, :symbol then advance
+                                   t.value
+        when :boolean  then advance
+                            t.value == 'true'
+        when :label    then advance
+                            t.value.to_sym # :wrap, :clamp, etc.
+        when :subtract # allow negatives like -1
+          advance
+          v = parse_kw_literal_value
+          raise_parse_error("numeric after unary '-'") unless v.is_a?(Numeric)
+          -v
         else
-          raise_parse_error("Expected '(' after 'fn'")
+          raise_parse_error('keyword value must be literal/label')
         end
       end
 
-      def parse_argument_list
+      def parse_args_and_opts_inside_parens
         args = []
+        opts = {}
 
-        expect_token(:lparen)
+        # expect_token(:lparen)
+
         unless current_token.type == :rparen
-          args << parse_expression
-          while current_token.type == :comma
-            advance
+          # --- positional args ---
+          unless next_is_kwarg_after_comma?
             args << parse_expression
+            while current_token.type == :comma && !next_is_kwarg_after_comma?
+              advance
+              args << parse_expression
+            end
+          end
+          # --- kwargs (labels like `policy:`) ---
+          if next_is_kwarg_after_comma?
+            # subsequent pairs: `, label value`
+            while current_token.type == :comma
+              # stop if next token is not a kw key
+              advance
+
+              if current_token.type == :label
+                key = current_token.value.to_sym
+                advance
+              end
+              opts[key] = parse_kw_literal_value
+
+              break unless next_is_kwarg_after_comma?
+            end
           end
         end
-        expect_token(:rparen)
 
-        args
+        expect_token(:rparen)
+        [args, opts]
+      end
+
+      def next_is_kwarg_after_comma?
+        current_token.type == :comma && peek_token.type == :label
       end
 
       def parse_array_literal
@@ -581,6 +635,7 @@ module Kumi
         when :float    then token.value.gsub('_', '').to_f
         when :string   then token.value
         when :boolean  then token.value == 'true'
+        when :symbol   then token.value.to_sym
         when :constant
           case token.value
           when 'Float::INFINITY' then Float::INFINITY
