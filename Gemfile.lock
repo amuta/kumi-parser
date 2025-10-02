@@ -1,16 +1,9 @@
 PATH
   remote: .
   specs:
-    kumi-parser (0.0.21)
+    kumi-parser (0.0.22)
       parslet (~> 2.0)
       zeitwerk (~> 2.6)
-
-PATH
-  remote: /home/muta/repos/kumi
-  specs:
-    kumi (0.0.18)
-      mutex_m (~> 0.3.0)
-      zeitwerk (~> 2.6.0)
 
 GEM
   remote: https://rubygems.org/
@@ -23,7 +16,6 @@ GEM
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
     method_source (1.1.0)
-    mutex_m (0.3.0)
     parallel (1.27.0)
     parser (3.3.9.0)
       ast (~> 2.4.1)
@@ -82,7 +74,6 @@ PLATFORMS
 
 DEPENDENCIES
   bundler (~> 2.0)
-  kumi!
   kumi-parser!
   pry (~> 0.15.2)
   rake (~> 13.0)
