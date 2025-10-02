@@ -253,11 +253,11 @@ module Kumi
       # Value declaration: 'value :name, expression' or 'value :name do ... end'
       def parse_value_declaration
         begin
-        value_token = expect_token(:value)
-        name_token = expect_token(:symbol)
-  rescue => e
-  binding.pry
-  end
+          value_token = expect_token(:value)
+          name_token = expect_token(:symbol)
+        rescue StandardError => e
+          binding.pry
+        end
 
         if current_token.type == :do
           expression = parse_cascade_expression
@@ -604,28 +604,30 @@ module Kumi
       end
 
       def parse_hash_pair
-        key_token_type = current_token.type
-        key = case key_token_type
-              when :label, :string
-                value = current_token.value.to_sym if key_token_type == :label
-                advance
-                Kumi::Syntax::Literal.new(value, loc: current_token.location)
-              else
-                raise_parse_error("Hash keys must be symbols (:key) or strings (\"key\"), got #{current_token.type}")
-              end
+        key_token = current_token
+
+        key_value =
+          case key_token.type
+          when :label   then key_token.value.to_sym   # render:
+          when :string  then key_token.value          # "0" => ...
+          when :symbol  then key_token.value.to_sym   # optional support for :foo => ...
+          else
+            raise_parse_error('Hash keys must be symbols (:key) or strings ("key")')
+          end
+
+        advance
+        key = Kumi::Syntax::Literal.new(key_value, loc: key_token.location)
 
         skip_comments_and_newlines
-
-        case current_token.type
-        when :arrow
+        if current_token.type == :arrow
           advance
         else
-          raise_parse_error("Expected '=>' in hash pair") unless key_token_type == :label
+          # Only labels may omit => (Ruby-style `key:`)
+          raise_parse_error("Expected '=>' in hash pair") unless key_token.type == :label
         end
 
         skip_comments_and_newlines
         value = parse_expression
-
         [key, value]
       end
 
