@@ -61,10 +61,12 @@ module Kumi
         trait_declarations = []
 
         skip_comments_and_newlines
-        while %i[value trait].include?(current_token.type)
+        while %i[value trait let].include?(current_token.type)
           case current_token.type
           when :value
             value_declarations << parse_value_declaration
+          when :let
+            value_declarations << parse_let_value_declaration
           when :trait
             trait_declarations << parse_trait_declaration
           end
@@ -252,12 +254,8 @@ module Kumi
 
       # Value declaration: 'value :name, expression' or 'value :name do ... end'
       def parse_value_declaration
-        begin
-          value_token = expect_token(:value)
-          name_token = expect_token(:symbol)
-        rescue StandardError => e
-          binding.pry
-        end
+        value_token = expect_token(:value)
+        name_token = expect_token(:symbol)
 
         if current_token.type == :do
           expression = parse_cascade_expression
@@ -270,6 +268,25 @@ module Kumi
           name_token.value,
           expression,
           loc: value_token.location
+        )
+      end
+
+      def parse_let_value_declaration
+        let_token = expect_token(:let)
+        name_token = expect_token(:symbol)
+
+        if current_token.type == :do
+          expression = parse_cascade_expression
+        else
+          expect_token(:comma)
+          expression = parse_expression
+        end
+
+        Kumi::Syntax::ValueDeclaration.new(
+          name_token.value,
+          expression,
+          hints:{inline: true},
+          loc: let_token.location
         )
       end
 

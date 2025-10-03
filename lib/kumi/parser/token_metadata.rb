@@ -90,6 +90,10 @@ module Kumi
         expects_expression: true,
         declaration_type: :value
       },
+      let: {
+        category: :keyword,
+        expects_expression: true
+      },
       trait: {
         category: :keyword,
         expects_expression: true,
@@ -404,6 +408,7 @@ module Kumi
       'schema' => :schema,
       'input' => :input,
       'value' => :value,
+      'let' => :let,
       'trait' => :trait,
       'do' => :do,
       'end' => :end,
