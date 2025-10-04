@@ -158,12 +158,11 @@ RSpec.describe 'Kumi::Parser::TextParser Integration' do
 
     context 'when compared to ruby parsed schema' do
       it 'has identical AST structure' do
-        ruby_parsed = Tax2024Schema.__syntax_tree__
+        ruby_parsed = Tax2024Schema.__kumi_syntax_tree__
         text_parsed = Kumi::Parser::TextParser.parse(tax_2024_schema)
 
         expect(text_parsed).to eq(ruby_parsed)
       end
     end
-
   end
 end

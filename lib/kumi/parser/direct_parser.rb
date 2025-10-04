@@ -285,7 +285,7 @@ module Kumi
         Kumi::Syntax::ValueDeclaration.new(
           name_token.value,
           expression,
-          hints:{inline: true},
+          hints: { inline: true },
           loc: let_token.location
         )
       end
@@ -361,6 +361,7 @@ module Kumi
       # Pratt parser for expressions
       def parse_expression(min_precedence = 0)
         left = parse_primary_expression
+        left = parse_postfix_chain(left)
         skip_comments_and_newlines
 
         while current_token.operator? && current_token.precedence >= min_precedence
@@ -381,10 +382,23 @@ module Kumi
             [left, right],
             loc: operator_token.location
           )
+          left = parse_postfix_chain(left)
           skip_comments_and_newlines
         end
 
         left
+      end
+
+      def parse_postfix_chain(base)
+        skip_comments_and_newlines
+        while current_token.type == :lbracket
+          expect_token(:lbracket)
+          index_expr = parse_expression
+          expect_token(:rbracket)
+          base = Kumi::Syntax::CallExpression.new(:at, [base, index_expr], loc: base.loc)
+          skip_comments_and_newlines
+        end
+        base
       end
 
       def parse_primary_expression
@@ -399,11 +413,8 @@ module Kumi
           parse_function_sugar
 
         when :identifier
-
           if token.value == 'input' && peek_token.type == :dot
             parse_input_reference
-          elsif peek_token.type == :lbracket
-            parse_array_access_reference
           else
             advance
             Kumi::Syntax::DeclarationReference.new(token.value.to_sym, loc: token.location)
@@ -485,16 +496,6 @@ module Kumi
         end
       end
 
-      def parse_array_access_reference
-        name_token = expect_token(:identifier)
-        expect_token(:lbracket)
-        index_expr = parse_expression
-        expect_token(:rbracket)
-
-        base_ref = Kumi::Syntax::DeclarationReference.new(name_token.value.to_sym, loc: name_token.location)
-        Kumi::Syntax::CallExpression.new(:at, [base_ref, index_expr], loc: name_token.location)
-      end
-
       def parse_function_sugar
         sugar = current_token
         advance # e.g. shift(...)
@@ -514,7 +515,7 @@ module Kumi
           args, opts = parse_args_and_opts_inside_parens
         end
         # expect_token(:rparen)
-        Kumi::Syntax::CallExpression.new(fn_name_token.value, args, loc: fn_name_token.location, opts: opts)
+        Kumi::Syntax::CallExpression.new(fn_name_token.value, args, opts, loc: fn_name_token.location)
       end
 
       def parse_kw_literal_value

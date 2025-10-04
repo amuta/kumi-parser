@@ -51,7 +51,7 @@ RSpec.describe 'Kumi::Parser::TextParser Simple Domain Examples' do
     context 'when comparing S-expressions' do
       it 'shows Ruby DSL vs Text Parser AST differences' do
         # Get Ruby DSL AST
-        ruby_ast = SimpleStatusSchema.__syntax_tree__
+        ruby_ast = SimpleStatusSchema.__kumi_syntax_tree__
 
         # Get Text Parser AST
         text_ast = Kumi::Parser::TextParser.parse(simple_status_text)

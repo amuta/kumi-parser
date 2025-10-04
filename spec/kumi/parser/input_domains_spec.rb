@@ -93,7 +93,7 @@ RSpec.describe 'Kumi::Parser::TextParser Input Domains' do
 
     context 'when compared to ruby parsed schema' do
       it 'has identical AST structure (excluding domain specifications)' do
-        ruby_parsed = UserRegistrationSchema.__syntax_tree__
+        ruby_parsed = UserRegistrationSchema.__kumi_syntax_tree__
         text_parsed = Kumi::Parser::TextParser.parse(user_registration_text)
 
         # Compare basic structure
@@ -192,7 +192,7 @@ RSpec.describe 'Kumi::Parser::TextParser Input Domains' do
 
     context 'when compared to ruby parsed schema' do
       it 'has identical AST structure (excluding domain specifications)' do
-        ruby_parsed = ProductCatalogSchema.__syntax_tree__
+        ruby_parsed = ProductCatalogSchema.__kumi_syntax_tree__
         text_parsed = Kumi::Parser::TextParser.parse(product_catalog_text)
 
         # Compare basic structure

@@ -64,7 +64,7 @@ RSpec.describe 'Kumi::Parser::TextParser Working Domain Examples' do
 
     context 'when comparing with Ruby DSL' do
       it 'shows domain information in S-expressions' do
-        ruby_ast = WorkingDomainSchema.__syntax_tree__
+        ruby_ast = WorkingDomainSchema.__kumi_syntax_tree__
         text_ast = Kumi::Parser::TextParser.parse(array_domains_text)
 
         # puts "\n=== RUBY DSL S-EXPRESSION ==="

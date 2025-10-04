@@ -67,7 +67,7 @@ RSpec.describe 'Mixed Nested Schema Support' do
 
     context 'when compared to ruby AST' do
       it 'has identical AST structure' do
-        ruby_ast = HashValueSchema.__syntax_tree__
+        ruby_ast = HashValueSchema.__kumi_syntax_tree__
         text_ast = Kumi::Parser::TextParser.parse(hash_value_schema)
 
         # Direct AST comparison
@@ -75,7 +75,7 @@ RSpec.describe 'Mixed Nested Schema Support' do
       end
 
       it 'produces identical S-expression output' do
-        ruby_ast = HashValueSchema.__syntax_tree__
+        ruby_ast = HashValueSchema.__kumi_syntax_tree__
         text_ast = Kumi::Parser::TextParser.parse(hash_value_schema)
 
         ruby_sexpr = Kumi::Support::SExpressionPrinter.print(ruby_ast)

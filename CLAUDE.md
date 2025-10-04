@@ -83,7 +83,7 @@ text_ast = Kumi::Parser::TextParser.parse(<<~KUMI)
 KUMI
 
 # Compare ASTs
-ruby_ast = TestSchema.__syntax_tree__
+ruby_ast = TestSchema.__kumi_syntax_tree__
 text_ast == ruby_ast # Should be true
 ```
 

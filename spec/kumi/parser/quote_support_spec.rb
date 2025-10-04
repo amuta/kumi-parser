@@ -10,7 +10,7 @@ RSpec.describe 'Quote Support' do
           input do
             string :name
           end
-          
+        #{'  '}
           value :double_quoted, "hello world"
           value :single_quoted, 'hello world'
           value :mixed_concat, "hello" + 'world'
@@ -24,7 +24,7 @@ RSpec.describe 'Quote Support' do
           input do
             string :name
           end
-          
+        #{'  '}
           value :hash_in_double, "This has a # symbol"
           value :hash_in_single, 'This also has a # symbol'
           value :comment_like, "# This looks like a comment but isn't"
@@ -38,7 +38,7 @@ RSpec.describe 'Quote Support' do
           input do
             string :name
           end
-          
+        #{'  '}
           value :escaped_double, "She said \\"hello\\""
           value :escaped_single, 'It\\'s working'
           value :mixed_escapes, "Single ' quote inside double"
@@ -73,20 +73,20 @@ RSpec.describe 'Quote Support' do
 
     it 'creates correct AST for mixed quotes' do
       ast = Kumi::Parser::TextParser.parse(mixed_quotes_text)
-      
+
       expect(ast.values.length).to eq(3)
-      
+
       # Check that string values are parsed correctly
       double_quoted = ast.values[0]
       expect(double_quoted.name).to eq(:double_quoted)
       expect(double_quoted.expression).to be_a(Kumi::Syntax::Literal)
-      expect(double_quoted.expression.value).to eq("hello world")
-      
+      expect(double_quoted.expression.value).to eq('hello world')
+
       single_quoted = ast.values[1]
       expect(single_quoted.name).to eq(:single_quoted)
       expect(single_quoted.expression).to be_a(Kumi::Syntax::Literal)
-      expect(single_quoted.expression.value).to eq("hello world")
-      
+      expect(single_quoted.expression.value).to eq('hello world')
+
       # Mixed concatenation should be a call expression with add operator
       mixed_concat = ast.values[2]
       expect(mixed_concat.name).to eq(:mixed_concat)
@@ -103,11 +103,11 @@ RSpec.describe 'Quote Support' do
         input do
           string :name
         end
-        
-        value :double_quoted, "hello world"
-        value :single_quoted, "hello world"  # Ruby DSL normalizes to double quotes
-        value :mixed_concat, "hello" + "world"  # Ruby DSL normalizes to double quotes
-        value :complex_concat, "prefix: " + input.name + ' suffix'
+
+        value :double_quoted, 'hello world'
+        value :single_quoted, 'hello world' # Ruby DSL normalizes to double quotes
+        value :mixed_concat, 'hello' + 'world' # Ruby DSL normalizes to double quotes
+        value :complex_concat, 'prefix: ' + input.name + ' suffix'
       end
     end
 
@@ -117,7 +117,7 @@ RSpec.describe 'Quote Support' do
           input do
             string :name
           end
-          
+        #{'  '}
           value :double_quoted, "hello world"
           value :single_quoted, 'hello world'
           value :mixed_concat, "hello" + 'world'
@@ -127,45 +127,45 @@ RSpec.describe 'Quote Support' do
     end
 
     it 'produces equivalent AST for simple string literals' do
-      ruby_ast = QuoteSupportSchema.__syntax_tree__
+      ruby_ast = QuoteSupportSchema.__kumi_syntax_tree__
       text_ast = Kumi::Parser::TextParser.parse(text_with_mixed_quotes)
 
       # Compare inputs (should be identical)
       expect(text_ast.inputs).to eq(ruby_ast.inputs)
-      
+
       # Compare simple string literal values (first two)
       expect(text_ast.values[0]).to eq(ruby_ast.values[0])  # double_quoted
       expect(text_ast.values[1]).to eq(ruby_ast.values[1])  # single_quoted
-      
+
       # For concatenation: Ruby DSL evaluates to literal, text parser keeps as expression
       # Both are semantically equivalent but structurally different
       ruby_concat = ruby_ast.values[2]
       text_concat = text_ast.values[2]
-      
-      expect(ruby_concat.name).to eq(text_concat.name)  # Both :mixed_concat
+
+      expect(ruby_concat.name).to eq(text_concat.name) # Both :mixed_concat
       expect(ruby_concat.expression).to be_a(Kumi::Syntax::Literal)
       expect(text_concat.expression).to be_a(Kumi::Syntax::CallExpression)
     end
 
     it 'produces similar AST structure for complex concatenation' do
-      ruby_ast = QuoteSupportSchema.__syntax_tree__
+      ruby_ast = QuoteSupportSchema.__kumi_syntax_tree__
       text_ast = Kumi::Parser::TextParser.parse(text_with_mixed_quotes)
 
       # Complex concatenation has same structure but different operators
       ruby_complex = ruby_ast.values[3]
       text_complex = text_ast.values[3]
-      
-      expect(ruby_complex.name).to eq(text_complex.name)  # Both :complex_concat
-      
+
+      expect(ruby_complex.name).to eq(text_complex.name) # Both :complex_concat
+
       # Ruby DSL uses :concat + :add, text parser uses :add + :add
       # But both have the same nested structure with same literals and references
       expect(ruby_complex.expression).to be_a(Kumi::Syntax::CallExpression)
       expect(text_complex.expression).to be_a(Kumi::Syntax::CallExpression)
-      
+
       # Both should have 2 args in the top-level call
       expect(ruby_complex.expression.args.length).to eq(2)
       expect(text_complex.expression.args.length).to eq(2)
-      
+
       # Last arg should be the same literal in both
       expect(ruby_complex.expression.args[1]).to eq(text_complex.expression.args[1])
     end

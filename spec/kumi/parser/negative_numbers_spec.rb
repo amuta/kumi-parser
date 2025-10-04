@@ -179,7 +179,7 @@ RSpec.describe 'Negative Numbers Support' do
       end
 
       text_ast = Kumi::Parser::TextParser.parse(kumi_text)
-      ruby_ast = ruby_schema.__syntax_tree__
+      ruby_ast = ruby_schema.__kumi_syntax_tree__
 
       expect(text_ast).to eq(ruby_ast)
     end
@@ -207,7 +207,7 @@ RSpec.describe 'Negative Numbers Support' do
       end
 
       text_ast = Kumi::Parser::TextParser.parse(kumi_text)
-      ruby_ast = ruby_schema.__syntax_tree__
+      ruby_ast = ruby_schema.__kumi_syntax_tree__
 
       expect(text_ast).to eq(ruby_ast)
     end
@@ -233,7 +233,7 @@ RSpec.describe 'Negative Numbers Support' do
       end
 
       text_ast = Kumi::Parser::TextParser.parse(kumi_text)
-      ruby_ast = ruby_schema.__syntax_tree__
+      ruby_ast = ruby_schema.__kumi_syntax_tree__
 
       expect(text_ast).to eq(ruby_ast)
     end
@@ -261,7 +261,7 @@ RSpec.describe 'Negative Numbers Support' do
       end
 
       text_ast = Kumi::Parser::TextParser.parse(kumi_text)
-      ruby_ast = ruby_schema.__syntax_tree__
+      ruby_ast = ruby_schema.__kumi_syntax_tree__
 
       expect(text_ast).to eq(ruby_ast)
     end
@@ -293,7 +293,7 @@ RSpec.describe 'Negative Numbers Support' do
       end
 
       text_ast = Kumi::Parser::TextParser.parse(kumi_text)
-      ruby_ast = ruby_schema.__syntax_tree__
+      ruby_ast = ruby_schema.__kumi_syntax_tree__
 
       text_sexpr = Kumi::Support::SExpressionPrinter.print(text_ast)
       ruby_sexpr = Kumi::Support::SExpressionPrinter.print(ruby_ast)

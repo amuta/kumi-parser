@@ -62,7 +62,7 @@ RSpec.describe 'Kumi::Parser::TextParser Range Domains' do
 
     context 'when comparing with Ruby DSL' do
       it 'has identical AST structure including range domains' do
-        ruby_ast = RangeDomainSchema.__syntax_tree__
+        ruby_ast = RangeDomainSchema.__kumi_syntax_tree__
         text_ast = Kumi::Parser::TextParser.parse(range_domains_text)
 
         # puts "\n=== RUBY DSL S-EXPRESSION ==="

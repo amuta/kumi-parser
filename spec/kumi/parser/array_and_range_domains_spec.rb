@@ -137,7 +137,7 @@ RSpec.describe 'Kumi::Parser::TextParser Array and Range Domains' do
 
     context 'when compared to ruby parsed schema' do
       it 'has identical AST structure' do
-        ruby_parsed = StatusManagementSchema.__syntax_tree__
+        ruby_parsed = StatusManagementSchema.__kumi_syntax_tree__
         text_parsed = Kumi::Parser::TextParser.parse(status_management_text)
 
         expect(text_parsed.inputs.length).to eq(ruby_parsed.inputs.length)
@@ -226,7 +226,7 @@ RSpec.describe 'Kumi::Parser::TextParser Array and Range Domains' do
 
     context 'when compared to ruby parsed schema' do
       it 'has identical AST structure' do
-        ruby_parsed = UserPermissionsSchema.__syntax_tree__
+        ruby_parsed = UserPermissionsSchema.__kumi_syntax_tree__
         text_parsed = Kumi::Parser::TextParser.parse(user_permissions_text)
 
         expect(text_parsed.inputs.length).to eq(ruby_parsed.inputs.length)
@@ -318,7 +318,7 @@ RSpec.describe 'Kumi::Parser::TextParser Array and Range Domains' do
 
     context 'when compared to ruby parsed schema' do
       it 'has identical AST structure' do
-        ruby_parsed = ProductConfigurationSchema.__syntax_tree__
+        ruby_parsed = ProductConfigurationSchema.__kumi_syntax_tree__
         text_parsed = Kumi::Parser::TextParser.parse(product_configuration_text)
 
         expect(text_parsed.inputs.length).to eq(ruby_parsed.inputs.length)

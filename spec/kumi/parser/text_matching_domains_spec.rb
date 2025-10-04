@@ -138,7 +138,7 @@ RSpec.describe 'Kumi::Parser::TextParser Text Matching Domains' do
 
     context 'when compared to ruby parsed schema' do
       it 'has identical AST structure for core functionality' do
-        ruby_parsed = EmailValidationSchema.__syntax_tree__
+        ruby_parsed = EmailValidationSchema.__kumi_syntax_tree__
         text_parsed = Kumi::Parser::TextParser.parse(email_validation_text)
 
         expect(text_parsed.inputs.length).to eq(ruby_parsed.inputs.length)
@@ -227,7 +227,7 @@ RSpec.describe 'Kumi::Parser::TextParser Text Matching Domains' do
 
     context 'when compared to ruby parsed schema' do
       it 'has identical AST structure' do
-        ruby_parsed = ContactFormSchema.__syntax_tree__
+        ruby_parsed = ContactFormSchema.__kumi_syntax_tree__
         text_parsed = Kumi::Parser::TextParser.parse(contact_form_text)
 
         expect(text_parsed.inputs.length).to eq(ruby_parsed.inputs.length)
@@ -316,7 +316,7 @@ RSpec.describe 'Kumi::Parser::TextParser Text Matching Domains' do
 
     context 'when compared to ruby parsed schema' do
       it 'has compatible AST structure' do
-        ruby_parsed = ProductCodeSchema.__syntax_tree__
+        ruby_parsed = ProductCodeSchema.__kumi_syntax_tree__
         text_parsed = Kumi::Parser::TextParser.parse(product_code_text)
 
         expect(text_parsed.inputs.length).to eq(ruby_parsed.inputs.length)

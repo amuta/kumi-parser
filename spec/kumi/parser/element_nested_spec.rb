@@ -55,22 +55,22 @@ RSpec.describe 'Element Nested Schema Support' do
 
     it 'creates correct AST structure' do
       ast = Kumi::Parser::TextParser.parse(element_nested_text)
-      
+
       # Check departments array
       departments = ast.inputs[0]
       expect(departments.name).to eq(:departments)
       expect(departments.type).to eq(:array)
-      
+
       # Check teams array inside departments
       teams = departments.children[1]
       expect(teams.name).to eq(:teams)
       expect(teams.type).to eq(:array)
-      
+
       # Check members array inside teams
       members = teams.children[1]
       expect(members.name).to eq(:members)
       expect(members.type).to eq(:array)
-      
+
       # Check element inside members
       employee_name = members.children[0]
       expect(employee_name.name).to eq(:employee_name)
@@ -89,17 +89,17 @@ RSpec.describe 'Element Nested Schema Support' do
 
     it 'creates correct nested structure' do
       ast = Kumi::Parser::TextParser.parse(element_with_children_text)
-      
+
       # Check coordinates array
       coordinates = ast.inputs[0]
       expect(coordinates.name).to eq(:coordinates)
       expect(coordinates.type).to eq(:array)
-      
+
       # Check point element inside coordinates
       point = coordinates.children[0]
       expect(point.name).to eq(:point)
       expect(point.type).to eq(:array)
-      
+
       # Check axis element inside point
       axis = point.children[0]
       expect(axis.name).to eq(:axis)
@@ -153,21 +153,21 @@ RSpec.describe 'Element Nested Schema Support' do
 
     context 'when compared to ruby AST' do
       it 'has identical AST structure for simple elements' do
-        ruby_ast = ElementNestedSchema.__syntax_tree__
+        ruby_ast = ElementNestedSchema.__kumi_syntax_tree__
         text_ast = Kumi::Parser::TextParser.parse(element_nested_text)
 
         expect(text_ast).to eq(ruby_ast)
       end
 
       it 'has identical AST structure for elements with children' do
-        ruby_ast = ElementWithChildrenSchema.__syntax_tree__
+        ruby_ast = ElementWithChildrenSchema.__kumi_syntax_tree__
         text_ast = Kumi::Parser::TextParser.parse(element_with_children_text)
 
         expect(text_ast).to eq(ruby_ast)
       end
 
       it 'produces identical S-expression output for simple elements' do
-        ruby_ast = ElementNestedSchema.__syntax_tree__
+        ruby_ast = ElementNestedSchema.__kumi_syntax_tree__
         text_ast = Kumi::Parser::TextParser.parse(element_nested_text)
 
         ruby_sexpr = Kumi::Support::SExpressionPrinter.print(ruby_ast)
@@ -177,7 +177,7 @@ RSpec.describe 'Element Nested Schema Support' do
       end
 
       it 'produces identical S-expression output for elements with children' do
-        ruby_ast = ElementWithChildrenSchema.__syntax_tree__
+        ruby_ast = ElementWithChildrenSchema.__kumi_syntax_tree__
         text_ast = Kumi::Parser::TextParser.parse(element_with_children_text)
 
         ruby_sexpr = Kumi::Support::SExpressionPrinter.print(ruby_ast)
