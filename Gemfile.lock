@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    kumi-parser (0.0.23)
+    kumi-parser (0.0.24)
       parslet (~> 2.0)
       zeitwerk (~> 2.6)
 
