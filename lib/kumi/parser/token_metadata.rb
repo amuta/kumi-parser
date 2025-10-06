@@ -400,7 +400,8 @@ module Kumi
     FUNCTION_SUGAR = {
       'select' => '__select__',
       'shift' => 'shift',
-      'roll' => 'roll'
+      'roll' => 'roll',
+      'index' => 'index'
     }
 
     # Keywords mapping
@@ -424,8 +425,7 @@ module Kumi
       'any' => :any_type,
       'array' => :array_type,
       'hash' => :hash_type,
-      'element' => :element_type,
-      'index' => :index_type
+      'element' => :element_type
     }.freeze
 
     # Opener to closer mappings for error recovery

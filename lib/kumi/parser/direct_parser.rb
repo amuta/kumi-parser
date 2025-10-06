@@ -4,6 +4,8 @@ module Kumi
   module Parser
     # Direct AST construction parser using recursive descent with embedded token metadata
     class DirectParser
+      include Kumi::Parser::Helpers
+
       def initialize(tokens)
         @tokens = tokens
         @pos = 0
@@ -39,14 +41,6 @@ module Kumi
         token = current_token
         advance
         token
-      end
-
-      def skip_newlines
-        advance while current_token.type == :newline
-      end
-
-      def skip_comments_and_newlines
-        advance while %i[newline comment].include?(current_token.type)
       end
 
       # Schema: 'schema' 'do' ... 'end'
@@ -102,11 +96,6 @@ module Kumi
         declarations
       end
 
-      # Input declaration: 'integer :name' or 'array :items do ... end' or 'element :type, :name'
-      #
-      # IMPORTANT: For array nodes with a block, this sets the node's access_mode:
-      #   - :element if the block contains exactly one child introduced by `element`
-      #   - :field   otherwise
       def parse_input_declaration
         type_token = current_token
         unless type_token.metadata[:category] == :type_keyword
@@ -114,94 +103,34 @@ module Kumi
         end
         advance
 
-        # element :type, :name  (syntactic sugar: the child was declared via `element`)
-        declared_with_element = (type_token.metadata[:type_name] == :element)
-        declared_with_index = (type_token.metadata[:type_name] == :index)
-        if declared_with_element
-          element_type_token = expect_token(:symbol)
-          expect_token(:comma)
-          name_token = expect_token(:symbol)
-          actual_type = element_type_token.value
-        elsif declared_with_index
-          name_token  = expect_token(:symbol)
-          actual_type = :index
-        else
-          name_token  = expect_token(:symbol)
-          actual_type = type_token.metadata[:type_name]
-        end
+        name_token  = expect_token(:symbol)
+        actual_type = type_token.metadata[:type_name]
 
-        # Optional: ', domain: ...'
-        domain = nil
-        if current_token.type == :comma
-          advance
-          if current_token.type == :identifier && current_token.value == 'domain'
-            advance
-            expect_token(:colon)
-            domain = parse_domain_specification
-          else
-            @pos -= 1
-          end
-        end
+        domain, index_name = parse_optional_decl_kwargs
 
-        # Parse nested declarations for block forms
+        raise_parse_error('`index:` only valid on array declarations') if index_name && actual_type != :array
+
         children = []
-        any_element_children = false
-        any_field_children   = false
-
         if %i[array hash element].include?(actual_type) && current_token.type == :do
-          advance # consume 'do'
+          advance
           skip_comments_and_newlines
-
           until %i[end eof].include?(current_token.type)
             break unless current_token.metadata[:category] == :type_keyword
-
-            # Syntactic decision (NO counting): is this child introduced by `element`?
-            child_is_element_keyword = (current_token.metadata[:type_name] == :element)
-            child_is_index_keyword   = (current_token.metadata[:type_name] == :index)
-            any_element_children ||= child_is_element_keyword
-            any_field_children   ||= !child_is_element_keyword && !child_is_index_keyword
 
             children << parse_input_declaration
             skip_comments_and_newlines
           end
-
           expect_token(:end)
-
-          # For array blocks, access_mode derives strictly from syntax:
-          # - :element if ANY direct child used `element`
-          # - :field   if NONE used `element`
-          # Mixing is invalid.
-          if actual_type == :array
-            if any_element_children && any_field_children
-              raise_parse_error("array :#{name_token.value} mixes `element` and field children; choose one style")
-            end
-            access_mode = any_element_children ? :element : :field
-          else
-            access_mode = :field # objects/hashes with blocks behave like field containers
-          end
-        else
-          access_mode = nil # leaves carry no access_mode
         end
 
-        if children.empty?
-          Kumi::Syntax::InputDeclaration.new(
-            name_token.value,
-            domain,
-            actual_type,
-            children,
-            loc: type_token.location
-          )
-        else
-          # 5th positional arg in your existing ctor is access_mode
-          Kumi::Syntax::InputDeclaration.new(
-            name_token.value,
-            domain,
-            actual_type,
-            children,
-            access_mode || :field,
-            loc: type_token.location
-          )
-        end
+        Kumi::Syntax::InputDeclaration.new(
+          name_token.value,
+          domain,
+          actual_type,
+          children,
+          index_name, # <— NEW
+          loc: type_token.location
+        )
       end
 
       def parse_domain_specification
@@ -352,12 +281,6 @@ module Kumi
         end
       end
 
-      def advance_and_return_token
-        token = current_token
-        advance
-        token
-      end
-
       # Pratt parser for expressions
       def parse_expression(min_precedence = 0)
         left = parse_primary_expression
@@ -405,27 +328,28 @@ module Kumi
         token = current_token
 
         case token.type
-        when :integer, :float, :string, :boolean, :constant
+        when :integer, :float, :string, :boolean, :constant, :symbol
           value = convert_literal_value(token)
           advance
           Kumi::Syntax::Literal.new(value, loc: token.location)
+
         when :function_sugar
           parse_function_sugar
 
         when :identifier
           if token.value == 'input' && peek_token.type == :dot
             parse_input_reference
+          elsif token.value == 'index' && peek_token.type == :lparen
+            parse_index_intrinsic
           else
             advance
             Kumi::Syntax::DeclarationReference.new(token.value.to_sym, loc: token.location)
           end
 
         when :input
-          if peek_token.type == :dot
-            parse_input_reference_from_input_token
-          else
-            raise_parse_error("Unexpected 'input' keyword in expression")
-          end
+          return parse_input_reference_from_input_token if peek_token.type == :dot
+
+          raise_parse_error("Unexpected 'input' keyword in expression")
 
         when :lparen
           advance
@@ -440,18 +364,14 @@ module Kumi
           parse_hash_literal
 
         when :fn
-          # expect_token(:fn)
           parse_function_call
 
         when :subtract
           advance
           skip_comments_and_newlines
           operand = parse_primary_expression
-          Kumi::Syntax::CallExpression.new(
-            :subtract,
-            [Kumi::Syntax::Literal.new(0, loc: token.location), operand],
-            loc: token.location
-          )
+          Kumi::Syntax::CallExpression.new(:subtract, [Kumi::Syntax::Literal.new(0, loc: token.location), operand],
+                                           loc: token.location)
 
         when :newline, :comment
           skip_comments_and_newlines
@@ -462,16 +382,29 @@ module Kumi
         end
       end
 
-      def parse_input_reference
-        input_token = expect_token(:identifier) # 'input'
-        expect_token(:dot)
+      def parse_index_intrinsic
+        start = current_token
+        if start.type == :index_type || (start.type == :identifier && start.value == 'index')
+          advance
+        else
+          raise_parse_error('Expected index(...)')
+        end
 
+        expect_token(:lparen)
+        sym = expect_token(:symbol) # :i, :j, ...
+        expect_token(:rparen)
+        Kumi::Syntax::IndexReference.new(sym.value, loc: start.location)
+      end
+
+      def parse_input_reference
+        input_token = expect_token(:identifier) # must be 'input'
+        raise_parse_error("Expected 'input'") unless input_token.value == 'input'
+        expect_token(:dot)
         path = [expect_field_name_token.to_sym]
         while current_token.type == :dot
           advance
           path << expect_field_name_token.to_sym
         end
-
         if path.length == 1
           Kumi::Syntax::InputReference.new(path.first, loc: input_token.location)
         else
@@ -516,70 +449,6 @@ module Kumi
         end
         # expect_token(:rparen)
         Kumi::Syntax::CallExpression.new(fn_name_token.value, args, opts, loc: fn_name_token.location)
-      end
-
-      def parse_kw_literal_value
-        t = current_token
-        case t.type
-        when :integer  then advance
-                            t.value.delete('_').to_i
-        when :float    then advance
-                            t.value.delete('_').to_f
-        when :string, :symbol then advance
-                                   t.value
-        when :boolean  then advance
-                            t.value == 'true'
-        when :label    then advance
-                            t.value.to_sym # :wrap, :clamp, etc.
-        when :subtract # allow negatives like -1
-          advance
-          v = parse_kw_literal_value
-          raise_parse_error("numeric after unary '-'") unless v.is_a?(Numeric)
-          -v
-        else
-          raise_parse_error('keyword value must be literal/label')
-        end
-      end
-
-      def parse_args_and_opts_inside_parens
-        args = []
-        opts = {}
-
-        # expect_token(:lparen)
-
-        unless current_token.type == :rparen
-          # --- positional args ---
-          unless next_is_kwarg_after_comma?
-            args << parse_expression
-            while current_token.type == :comma && !next_is_kwarg_after_comma?
-              advance
-              args << parse_expression
-            end
-          end
-          # --- kwargs (labels like `policy:`) ---
-          if next_is_kwarg_after_comma?
-            # subsequent pairs: `, label value`
-            while current_token.type == :comma
-              # stop if next token is not a kw key
-              advance
-
-              if current_token.type == :label
-                key = current_token.value.to_sym
-                advance
-              end
-              opts[key] = parse_kw_literal_value
-
-              break unless next_is_kwarg_after_comma?
-            end
-          end
-        end
-
-        expect_token(:rparen)
-        [args, opts]
-      end
-
-      def next_is_kwarg_after_comma?
-        current_token.type == :comma && peek_token.type == :label
       end
 
       def parse_array_literal
@@ -649,32 +518,6 @@ module Kumi
         [key, value]
       end
 
-      def convert_literal_value(token)
-        case token.type
-        when :integer  then token.value.gsub('_', '').to_i
-        when :float    then token.value.gsub('_', '').to_f
-        when :string   then token.value
-        when :boolean  then token.value == 'true'
-        when :symbol   then token.value.to_sym
-        when :constant
-          case token.value
-          when 'Float::INFINITY' then Float::INFINITY
-          else
-            raise_parse_error("Unknown constant: #{token.value}")
-          end
-        end
-      end
-
-      def expect_field_name_token
-        token = current_token
-        if token.identifier? || token.keyword?
-          advance
-          token.value
-        else
-          raise_parse_error("Expected field name (identifier or keyword), got #{token.type}")
-        end
-      end
-
       def raise_parse_error(message)
         location = current_token.location
         raise Errors::ParseError.new(message, token: current_token)
@@ -686,21 +529,6 @@ module Kumi
 
       def wrap_condition_in_all(condition)
         Kumi::Syntax::CallExpression.new(:cascade_and, [condition], loc: condition.loc)
-      end
-
-      def map_operator_token_to_function_name(token_type)
-        case token_type
-        when :eq  then :==
-        when :ne  then :!=
-        when :gt  then :>
-        when :lt  then :<
-        when :gte then :>=
-        when :lte then :<=
-        when :and then :and
-        when :or  then :or
-        when :exponent then :power
-        else token_type
-        end
       end
     end
   end
