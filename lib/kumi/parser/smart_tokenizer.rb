@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative 'token_metadata'
+require_relative 'token_constants'
 require_relative 'token'
 require_relative 'errors'
 
