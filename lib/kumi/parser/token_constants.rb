@@ -28,6 +28,7 @@ module Kumi
       # Type keywords
       INTEGER_TYPE = :integer_type   # integer
       FLOAT_TYPE = :float_type       # float
+      DECIMAL_TYPE = :decimal_type   # decimal
       STRING_TYPE = :string_type     # string
       BOOLEAN_TYPE = :boolean_type   # boolean
       ANY_TYPE = :any_type           # any
@@ -129,6 +130,11 @@ module Kumi
         category: :type_keyword,
         starts_declaration: true,
         type_name: :float
+      },
+      decimal_type: {
+        category: :type_keyword,
+        starts_declaration: true,
+        type_name: :decimal
       },
       string_type: {
         category: :type_keyword,
@@ -401,7 +407,11 @@ module Kumi
       'select' => '__select__',
       'shift' => 'shift',
       'roll' => 'roll',
-      'index' => 'index'
+      'index' => 'index',
+      'to_decimal' => 'to_decimal',
+      'to_integer' => 'to_integer',
+      'to_float' => 'to_float',
+      'to_string' => 'to_string'
     }
 
     # Keywords mapping
@@ -420,6 +430,7 @@ module Kumi
       'false' => :boolean,
       'integer' => :integer_type,
       'float' => :float_type,
+      'decimal' => :decimal_type,
       'string' => :string_type,
       'boolean' => :boolean_type,
       'any' => :any_type,
