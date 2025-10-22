@@ -163,13 +163,16 @@ module Kumi
         identifier_or_label_name = consume_while { |c| c.match?(/[a-zA-Z0-9_]/) }
         location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
 
-        # Check if it's a constant FIRST (e.g., Float::INFINITY or GoldenSchemas::Tax)
+        # Check if it's a constant FIRST (e.g., Float::INFINITY or Kumi::TestSharedSchemas::Tax)
         # This needs to be checked before label detection because labels also start with `:``
         if current_char == ':' && peek_char == ':'
-          advance # consume first :
-          advance # consume second :
-          constant_name = consume_while { |c| c.match?(/[a-zA-Z0-9_]/) }
-          full_constant = "#{identifier_or_label_name}::#{constant_name}"
+          full_constant = identifier_or_label_name
+          while current_char == ':' && peek_char == ':'
+            advance # consume first :
+            advance # consume second :
+            constant_name = consume_while { |c| c.match?(/[a-zA-Z0-9_]/) }
+            full_constant = "#{full_constant}::#{constant_name}"
+          end
           add_token(:constant, full_constant, Kumi::Parser::TOKEN_METADATA[:constant])
           return
         end
