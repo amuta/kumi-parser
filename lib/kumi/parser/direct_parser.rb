@@ -9,11 +9,24 @@ module Kumi
       def initialize(tokens)
         @tokens = tokens
         @pos = 0
+        @imported_names = Set.new
       end
 
       def parse
         skip_comments_and_newlines
+
+        # Parse root-level imports (before schema)
+        root_imports = parse_imports
+        @imported_names.merge(root_imports.flat_map(&:names))
+
         schema_node = parse_schema
+
+        # If we have root imports, add them to the schema
+        if root_imports.any?
+          # Merge root imports with schema imports
+          schema_node.imports.concat(root_imports)
+        end
+
         skip_comments_and_newlines
         expect_token(:eof)
         schema_node
@@ -49,6 +62,9 @@ module Kumi
         expect_token(:do)
 
         skip_comments_and_newlines
+        import_declarations = parse_imports
+        @imported_names.merge(import_declarations.flat_map(&:names))
+
         input_declarations = parse_input_block
 
         value_declarations = []
@@ -73,8 +89,74 @@ module Kumi
           input_declarations,
           value_declarations, # values
           trait_declarations,
+          import_declarations,
           loc: schema_token.location
         )
+      end
+
+      # Parse import declarations: 'import' :symbol, from: Module
+      def parse_imports
+        imports = []
+        skip_comments_and_newlines
+
+        while current_token.type == :import
+          import_token = expect_token(:import)
+
+          names = []
+          names << expect_token(:symbol).value.to_sym
+
+          while current_token.type == :comma
+            expect_token(:comma)
+            skip_comments_and_newlines
+
+            # Check if this is the 'from:' keyword argument or another symbol to import
+            if current_token.type == :label && current_token.value == 'from'
+              # This is 'from:' - end of imports list
+              break
+            else
+              # Another symbol to import
+              names << expect_token(:symbol).value.to_sym
+            end
+          end
+
+          skip_comments_and_newlines
+
+          # Handle 'from:' keyword argument
+          if current_token.type == :label && current_token.value == 'from'
+            expect_token(:label) # consume 'from:'
+          else
+            raise_parse_error("Expected 'from:' keyword argument in import statement")
+          end
+
+          skip_comments_and_newlines
+
+          module_ref = parse_constant
+
+          imports << Kumi::Syntax::ImportDeclaration.new(
+            names,
+            module_ref,
+            loc: import_token.location
+          )
+
+          skip_comments_and_newlines
+        end
+
+        imports
+      end
+
+      # Parse a constant reference like Schemas::Tax
+      def parse_constant
+        const_parts = []
+        const_parts << expect_token(:constant).value
+
+        while current_token.type == :colon && peek_token.type == :colon
+          expect_token(:colon)
+          expect_token(:colon)
+          const_parts << expect_token(:constant).value
+        end
+
+        # Return the full constant path as a string that will be evaluated at runtime
+        const_parts.join('::')
       end
 
       # Input block: 'input' 'do' ... 'end'
@@ -341,6 +423,9 @@ module Kumi
             parse_input_reference
           elsif token.value == 'index' && peek_token.type == :lparen
             parse_index_intrinsic
+          elsif peek_token.type == :lparen
+            # This is a function call like tax(amount: input.amount)
+            parse_imported_function_call
           else
             advance
             Kumi::Syntax::DeclarationReference.new(token.value.to_sym, loc: token.location)
@@ -448,7 +533,51 @@ module Kumi
           args, opts = parse_args_and_opts_inside_parens
         end
         # expect_token(:rparen)
-        Kumi::Syntax::CallExpression.new(fn_name_token.value, args, opts, loc: fn_name_token.location)
+
+        # Check if this is an imported function call
+        if @imported_names.include?(fn_name_token.value) && args.empty? && opts.any?
+          # Convert to ImportCall - opts become the input mapping
+          Kumi::Syntax::ImportCall.new(fn_name_token.value, opts, loc: fn_name_token.location)
+        else
+          # Regular call expression
+          Kumi::Syntax::CallExpression.new(fn_name_token.value, args, opts, loc: fn_name_token.location)
+        end
+      end
+
+      def parse_imported_function_call
+        fn_name_token = current_token
+        fn_name = fn_name_token.value.to_sym
+        advance # consume identifier
+        expect_token(:lparen)
+
+        # Parse keyword arguments for imported function calls
+        # Imported functions only accept keyword arguments
+        opts = {}
+
+        unless current_token.type == :rparen
+          # Parse keyword arguments with full expression values
+          while current_token.type == :label
+            key = current_token.value.to_sym
+            advance
+
+            opts[key] = parse_expression
+
+            break unless current_token.type == :comma
+            advance
+            skip_comments_and_newlines
+          end
+        end
+
+        expect_token(:rparen)
+
+        # Check if this is an imported function call
+        if @imported_names.include?(fn_name) && opts.any?
+          # Convert to ImportCall - opts become the input mapping
+          Kumi::Syntax::ImportCall.new(fn_name, opts, loc: fn_name_token.location)
+        else
+          # Regular call expression (shouldn't happen for imported functions)
+          Kumi::Syntax::CallExpression.new(fn_name, [], opts, loc: fn_name_token.location)
+        end
       end
 
       def parse_array_literal

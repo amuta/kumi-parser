@@ -20,6 +20,8 @@ module Kumi
       INPUT = :input
       VALUE = :value
       TRAIT = :trait
+      IMPORT = :import
+      FROM = :from
       DO = :do
       END_KW = :end
       ON = :on
@@ -99,6 +101,14 @@ module Kumi
         category: :keyword,
         expects_expression: true,
         declaration_type: :trait
+      },
+      import: {
+        category: :keyword,
+        import_declaration: true
+      },
+      from: {
+        category: :keyword,
+        import_source: true
       },
       do: {
         category: :keyword,
@@ -421,6 +431,8 @@ module Kumi
       'value' => :value,
       'let' => :let,
       'trait' => :trait,
+      'import' => :import,
+      'from' => :from,
       'do' => :do,
       'end' => :end,
       'on' => :on,

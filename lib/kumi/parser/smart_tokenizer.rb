@@ -163,7 +163,18 @@ module Kumi
         identifier_or_label_name = consume_while { |c| c.match?(/[a-zA-Z0-9_]/) }
         location = Kumi::Syntax::Location.new(file: @source_file, line: @line, column: start_column)
 
-        # Check if the next character is a colon
+        # Check if it's a constant FIRST (e.g., Float::INFINITY or GoldenSchemas::Tax)
+        # This needs to be checked before label detection because labels also start with `:``
+        if current_char == ':' && peek_char == ':'
+          advance # consume first :
+          advance # consume second :
+          constant_name = consume_while { |c| c.match?(/[a-zA-Z0-9_]/) }
+          full_constant = "#{identifier_or_label_name}::#{constant_name}"
+          add_token(:constant, full_constant, Kumi::Parser::TOKEN_METADATA[:constant])
+          return
+        end
+
+        # Check if the next character is a single colon (label)
         if current_char == ':'
           # It's a hash key or a label (e.g., `name:`)
           advance # consume the colon
@@ -173,16 +184,6 @@ module Kumi
 
         # If it's not a label, proceed to check for keywords and identifiers
         # The logic below is adapted from your original `consume_identifier_or_keyword` method
-
-        # Check if it's a constant (e.g., Float::INFINITY)
-        if identifier_or_label_name == 'Float' && current_char == ':' && peek_char == ':'
-          advance # consume first :
-          advance # consume second :
-          constant_name = consume_while { |c| c.match?(/[a-zA-Z0-9_]/) }
-          full_constant = "#{identifier_or_label_name}::#{constant_name}"
-          add_token(:constant, full_constant, Kumi::Parser::TOKEN_METADATA[:constant])
-          return
-        end
 
         # Check if it's a keyword
         if keyword_type = Kumi::Parser::KEYWORDS[identifier_or_label_name]
